@@ -1,0 +1,40 @@
+package "dsf2flac"
+version "0.1Rev30"
+purpose "Convert DSD audio files from DFF or DSF format into PCM flac audio."
+#usage "<usage>"
+#args "<command line options>"
+
+option "samplerate" r "Output sample rate"
+int
+typestr="Hz"
+values="88200","176400","352800"
+default="88200"
+optional
+
+option "bits"	b	"Output bitdepth"
+int 
+typestr="bits"
+values="16","20","24"
+default="24"
+optional
+
+option "nodither"	n	"Don't add dither before quantization"
+flag
+off
+
+option "scale"	s	"Scale adjustment. Raw DSD has a modulation depth of approximately 0.5 so with no scaling the PCM peak level is approximately -6dB below 0dBFs"
+float 
+typestr="dB"
+#values="-6","-4","-2","0","2","4","6"
+default="4"
+optional
+
+option "infile" i "Input DSF or DFF file"
+string
+typestr="filepath"
+required
+
+option "outfile" o "Output FLAC file, if not specified the output file be the same as the input file with the extension changed"
+string
+typestr="filepath"
+optional
