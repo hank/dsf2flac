@@ -52,7 +52,7 @@
 #ifndef DSDDECIMATOR_H
 #define DSDDECIMATOR_H
 
-#include <dsd_sample_reader.h>
+#include "dsd_sample_reader.h"
 
 class dsdDecimator
 {

@@ -47,7 +47,7 @@
  *
  */
 
-#include <dsd_sample_reader.h>
+#include "dsd_sample_reader.h"
 
 /**
  * dsdSampleReader::dsdSampleReader()

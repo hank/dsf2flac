@@ -1,0 +1,5 @@
+*.o
+*.in
+.deps
+Makefile
+dsf2flac

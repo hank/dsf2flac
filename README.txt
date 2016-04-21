@@ -14,7 +14,26 @@ then it should be dead simple: just look in filters.cpp.
 
 COMPILING
 
-I developed and tested this program on Linux x86_64 with GCC. It probably
+FLAC++
+boost_system
+boost_timer
+boost_filesystem
+id3
+
+Simply run `./autogen.sh` if you have GNU autoconf and automake installed. If all goes well, it will generate and run `configure` which will execute successfully. If there are any errors such as missing development libraries, please fix them and re-run `./autogen.sh`.
+
+If everything went smoothly, you can now run `make` and `src/dsf2flac` should be generated. By default, the installation prefix is set to `/usr/local`, so `sudo make install` would install it in `/usr/local/bin`. However, the prefix can be overriden using the `configure` script after running `autogen.sh`. Simply run `./configure --prefix=/your/prefix/path`. For more information, please see `./configure --help`
+
+RUNNING
+
+If you run `dsf2flac -h` you'll get a list of the options.
+
+At the very simplest level you just need to run
+`dsf2flac -i some_audio_file.dsf`
+
+DEVELOPING
+
+This software was developed and tested on Linux x86_64 with GCC. It probably
 compile and works on x86 GCC too. Windows might be a bit more work.  If you are
 building statically you'll need to link against these libs:
 
@@ -29,28 +48,16 @@ z
 rt
 ogg
 
-The list is a little smaller if you want to use dynamic linking:
+However, only the libraries listed above under `COMPILING` are required to build a dynamically linked library.
 
-FLAC++
-boost_system
-boost_timer
-boost_filesystem
-id3
-
-RUNNING
-
-If you run "dsf2flac -h" you'll get a list of the options.
-
-At the very simplest level you just need to run
-"dsf2flac -i some_audio_file.dsf"
-
+Contributions are always welcome! Please feel free to fork this project and make a pull request with any improvements.
 
 BENCHMARK
 
 I was quite pleased with the performance.
 For example, with the default filters (which are quite long) the program
 will convert and encode from DSD64 to 24bit 88200Hz flac at around 
-14x realtime on my ageing laptop (Intel Core2Duo P8600@2.40GHz)
+14x realtime on my aging laptop (Intel Core2Duo P8600@2.40GHz)
 
 
 
@@ -85,6 +92,4 @@ Maxim V.Anisiutkin - foo_input_sacd (http://sourceforge.net/projects/sacddecoder
 Vladislav Goncharov - foo_input_sacd_hq (http://vladgsound.wordpress.com)
 Jesus R - www.sonore.us
 Erik Gregg - slight mods and github posting
-
-
-
+Misha Nasledov - autotools-based build mess to make it easier to build for the masses (http://github.com/mishan/)
