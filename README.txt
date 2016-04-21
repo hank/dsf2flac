@@ -29,13 +29,17 @@ z
 rt
 ogg
 
-The list is a little smaller if you want to use dynamic linking:
+However, only the following are required to build a dynamically linked library (which is probably the use case for most people):
 
 FLAC++
 boost_system
 boost_timer
 boost_filesystem
 id3
+
+Simply run `./autogen.sh` if you have GNU autoconf and automake installed. If all goes well, it will generate and run `configure` which will execute successfully. If there are any errors such as missing development libraries, please fix them and re-run `./autogen.sh`.
+
+If everything went smoothly, you can now run `make` and `src/dsf2flac` should be generated. By default, the installation prefix is set to `/usr/local`, so `sudo make install` would install it in `/usr/local/bin`. However, the prefix can be overriden using the `configure` script after running `autogen.sh`. Simply run `./configure --prefix=/your/prefix/path`. For more information, please see `./configure --help`
 
 RUNNING
 
@@ -85,6 +89,6 @@ Maxim V.Anisiutkin - foo_input_sacd (http://sourceforge.net/projects/sacddecoder
 Vladislav Goncharov - foo_input_sacd_hq (http://vladgsound.wordpress.com)
 Jesus R - www.sonore.us
 Erik Gregg - slight mods and github posting
-
+Misha Nasledov - autotools-based build mess to make it easier to build for the masses (http://github.com/mishan/)
 
 
