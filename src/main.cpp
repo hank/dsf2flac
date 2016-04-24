@@ -38,15 +38,15 @@
 
 #include <boost/timer/timer.hpp>
 #include <boost/filesystem.hpp>
-#include <dsd_decimator.h>
-#include <dsf_file_reader.h>
-#include <dsdiff_file_reader.h>
-#include <tagConversion.h>
-#include "FLAC++/metadata.h"
-#include "FLAC++/encoder.h"
-#include "math.h"
-#include "cmdline.h"
+#include <FLAC++/metadata.h>
+#include <FLAC++/encoder.h>
 #include <sstream>
+#include "cmdline.h"
+#include "dsd_decimator.h"
+#include "dsf_file_reader.h"
+#include "dsdiff_file_reader.h"
+#include "math.h"
+#include "tagConversion.h"
 
 #define flacBlockLen 1000
 
