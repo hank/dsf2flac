@@ -6,6 +6,7 @@ AC_INIT([dsf2flac], [1.0])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AM_CONFIG_HEADER(config.h)
 AM_INIT_AUTOMAKE([foreign])
+AC_LANG(C++)
 
 # Support for building libdstdec
 AC_PROG_RANLIB
