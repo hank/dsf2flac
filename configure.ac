@@ -5,29 +5,30 @@ AC_PREREQ([2.69])
 AC_INIT([dsf2flac], [1.0])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([foreign -Wall])
+AM_PROG_AR
+LT_INIT
 
-# Support for building libdstdec
-AC_PROG_RANLIB
-
-AC_CONFIG_MACRO_DIR(m4)
+AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_MAKE_SET
+PKG_PROG_PKG_CONFIG()
+
+AC_HEADER_STDC
 
 # Checks for libraries.
-AM_PATH_LIBFLAC([], [
-  AC_MSG_ERROR([Unable to find libFLAC])
-])
-AM_PATH_LIBFLACPP([], [
-  AC_MSG_ERROR([Unable to find libFLAC++])
-])
-AX_LIB_ID3([], [
-  AC_MSG_ERROR([Unable to find libid3])
-])
-AX_BOOST_BASE
+AX_LIB_ID3([],
+	[AC_MSG_ERROR([libid3 required, but it was not found in your system])])
+# AM_PATH_LIBFLAC([], 
+# 	[AC_MSG_ERROR([libflac required, but it was not found in your system])]])
+# AM_PATH_LIBFLACPP([], 
+# 	[AC_MSG_ERROR([libflac++ required, but it was not found in your system])]])
+PKG_CONFIG_CHECK_MODULE([taglib],[1.6])
+AX_BOOST_BASE([1.48],, 
+	[AC_MSG_ERROR([Boost required, but it was not found in your system])])
 AX_BOOST_FILESYSTEM
 AX_BOOST_SYSTEM
 AX_BOOST_TIMER

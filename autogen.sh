@@ -11,19 +11,22 @@ PKG=dsf2flac
 	exit 1;
 }
 
+case `uname` in Darwin*) glibtoolize --copy ;;
+	  *) libtoolize --copy ;; esac
 
 echo "Generating configuration files for $PKG, please wait ..."
 echo "Ignore all non-fatal warnings ..."
 echo
-
+ACLOCAL_FLAGS="$ACLOCAL_FLAGS -I m4 --install"
 if test -d /usr/local/share/aclocal ; then
 	ACLOCAL_FLAGS="$ACLOCAL_FLAGS -I /usr/local/share/aclocal"
 fi
 
-aclocal $ACLOCAL_FLAGS
 autoheader
+aclocal $ACLOCAL_FLAGS
 autoconf
-automake --add-missing
+automake --foreign --add-missing --force-missing --copy
+autoreconf -i
 
 if [ "$1" != "--no-configure" ]; then
 	./configure $@
