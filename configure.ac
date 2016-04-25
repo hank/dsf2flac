@@ -22,12 +22,12 @@ AC_HEADER_STDC
 # Checks for libraries.
 AX_LIB_ID3([],
 	[AC_MSG_ERROR([libid3 required, but it was not found in your system])])
-# AM_PATH_LIBFLAC([], 
-# 	[AC_MSG_ERROR([libflac required, but it was not found in your system])]])
-# AM_PATH_LIBFLACPP([], 
-# 	[AC_MSG_ERROR([libflac++ required, but it was not found in your system])]])
+AM_PATH_LIBFLAC([],
+	[AC_MSG_ERROR([libflac required, but it was not found in your system])]])
+AM_PATH_LIBFLACPP([],
+	[AC_MSG_ERROR([libflac++ required, but it was not found in your system])]])
 PKG_CONFIG_CHECK_MODULE([taglib],[1.6])
-AX_BOOST_BASE([1.48],, 
+AX_BOOST_BASE([1.48],,
 	[AC_MSG_ERROR([Boost required, but it was not found in your system])])
 AX_BOOST_FILESYSTEM
 AX_BOOST_SYSTEM

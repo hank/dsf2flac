@@ -22,11 +22,11 @@ if test -d /usr/local/share/aclocal ; then
 	ACLOCAL_FLAGS="$ACLOCAL_FLAGS -I /usr/local/share/aclocal"
 fi
 
-autoheader
 aclocal $ACLOCAL_FLAGS
 autoconf
+autoheader
 automake --foreign --add-missing --force-missing --copy
-autoreconf -i
+autoreconf -if
 
 if [ "$1" != "--no-configure" ]; then
 	./configure $@
