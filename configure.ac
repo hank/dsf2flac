@@ -6,6 +6,7 @@ AC_INIT([dsf2flac], [1.0])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AM_CONFIG_HEADER(config.h)
 AM_INIT_AUTOMAKE([foreign -Wall])
+AC_LANG(C++)
 AM_PROG_AR
 LT_INIT
 
