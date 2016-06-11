@@ -48,7 +48,7 @@
   */
 
 #include "dsd_decimator.h"
-#include <math.h>
+#include <cmath>
 #include "filters.cpp"
 
 static bool lookupTableAllocated = false;
@@ -270,7 +270,7 @@ template<> void dsdDecimator::getSamples(double *buffer, dsf2flac_uint32 bufferL
 template <typename sampleType> void dsdDecimator::getSamplesInternal(sampleType *buffer, dsf2flac_uint32 bufferLen, dsf2flac_float64 scale, dsf2flac_float64 tpdfDitherPeakAmplitude, bool roundToInt)
 {
 	// check the buffer seems sensible
-	div_t d = div(bufferLen,getNumChannels());
+	ldiv_t d = ldiv(bufferLen,getNumChannels());
 	if (d.rem) {
 		fputs("Buffer length is not a multiple of getNumChannels()",stderr);
 		exit(EXIT_FAILURE);
