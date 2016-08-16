@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  *
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- *
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -22,7 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  *
- * Acknowledgements
+ * Acknowledgments
  *
  * Many thanks to the following authors and projects whose work has greatly
  * helped the development of this tool.
@@ -36,31 +35,11 @@
  *
  */
 
-/**
- * dsf_file_reader.cpp
- *
- * Implementation of class dsfFileReader.
- *
- * This class extends dsdSampleReader providing acces to dsd samples and other info
- * from dsf files.
- *
- * Some of the rarer features of dsf are not well tested due to a lack of files:
- * dsd64
- * 8bit dsd
- */
-
-#include "dsf_file_reader.h"
-#include "taglib/tfile.h"
-#include "taglib/id3v2tag.h"
+#include <dsf_file_reader.h>
 
 static bool blockBufferAllocated = false;
 
-/**
- * dsfFileReader::dsfFileReader(char* filePath)
- *
- * Constructor, pass in the location of a dsd file!
- */
-dsfFileReader::dsfFileReader(char* filePath) : dsdSampleReader()
+DsfFileReader::DsfFileReader(char* filePath) : DsdSampleReader()
 {
 	this->filePath = filePath;
 	// first let's open the file
@@ -87,13 +66,7 @@ dsfFileReader::dsfFileReader(char* filePath) : dsdSampleReader()
 	rewind(); // calls clearBuffer -> allocateBuffer
 }
 
-/**
- * dsfFileReader::~dsfFileReader()
- *
- * Destructor, close the file and free the block buffers
- *
- */
-dsfFileReader::~dsfFileReader()
+DsfFileReader::~DsfFileReader()
 {
 	// close the file
 	file.close();
@@ -107,14 +80,7 @@ dsfFileReader::~dsfFileReader()
 	}
 }
 
-/**
- * void dsfFileReader::step()
- *
- * Increments the position in the file by 8 dsd samples (1 byte of data).
- * The block buffers are updated with the new samples.
- *
- */
-bool dsfFileReader::step()
+bool DsfFileReader::step()
 {
 	bool ok = true;
 	
@@ -136,14 +102,7 @@ bool dsfFileReader::step()
 	return ok;
 }
 
-
-/**
- * bool dsfFileReader::rewind()
- *
- * Position the file at the start of the data and clear the buffer.
- *
- */
-void dsfFileReader::rewind()
+void DsfFileReader::rewind()
 {
 	// position the file at the start of the data chunk
 	if (file.seekg(sampleDataPointer)) {
@@ -160,14 +119,7 @@ void dsfFileReader::rewind()
 	return;
 }
 
-/**
- * bool dsfFileReader::readNextBlock()
- *
- * The dsd file is arranged in blocks. This private function is called whenever
- * new data from the file is needed for the buffer.
- *
- */
-bool dsfFileReader::readNextBlock()
+bool DsfFileReader::readNextBlock()
 {
 	// return false if this is the end of the file
 	if (!samplesAvailable()) {
@@ -196,13 +148,7 @@ bool dsfFileReader::readNextBlock()
 	return true;
 }
 
-/**
- * void dsfFileReader::readHeaders()
- *
- * Private function, called on create. Reads lots of info from the file.
- *
- */
-bool dsfFileReader::readHeaders()
+bool DsfFileReader::readHeaders()
 {
 	dsf2flac_uint32 chunkStart;
 	dsf2flac_uint64 chunkSz;
@@ -344,14 +290,7 @@ bool dsfFileReader::readHeaders()
 	return true;
 }
 
-/**
- * void dsfFileReader::allocateBlockBuffer()
- *
- * Private function, called on rewind. Allocates the block buffer which
- * holds the dsd data read from the file for when it is required by the buffer.
- *
- */
-void dsfFileReader::allocateBlockBuffer()
+void DsfFileReader::allocateBlockBuffer()
 {
 	if (blockBufferAllocated)
 		return;
@@ -361,14 +300,7 @@ void dsfFileReader::allocateBlockBuffer()
 	blockBufferAllocated = true;
 }
 
-/**
- * void dsfFileReader::readMetadata()
- *
- * Private function, called on create. Attempts to read the metadata from the
- * end of the dsf file.
- *
- */
-void dsfFileReader::readMetadata()
+void DsfFileReader::readMetadata()
 {
 
 	// zero if no metadata
@@ -382,46 +314,41 @@ void dsfFileReader::readMetadata()
 		return;
 	}
 	
-	// read the first 10 bytes of the metadata (which should be the header).
-	dsf2flac_uint8 id3header[10];
-	if (file.read_uint8(id3header,10)) {
+	if (fileSz <= metaChunkPointer) {
+		file.clear();
 		return;
 	}
-	
-	
-	// check this is actually an id3 header
-	dsf2flac_int64 id3tagLen;
-	if ( (id3tagLen = ID3_IsTagHeader(id3header)) > -1 )
+	// read the first ID3_TAGHEADERSIZE bytes of the id3 (which should be the header).
+	dsf2flac_uint8 id3header[ID3_TAGHEADERSIZE];
+	if (file.read_uint8(id3header,ID3_TAGHEADERSIZE)) {
 		return;
-	// read the tag
+	}
+	// check this is actually an id3 header
+	dsf2flac_int32 id3tagLen;
+	if ( (id3tagLen = ID3_Tag::IsV2Tag(id3header)) < 1 ) {
+		return;
+	}
+	// return to the start of the metadata
+	if (file.seekg(-ID3_TAGHEADERSIZE,std::ios_base::cur)) {
+		file.clear();
+		return;
+	}
+	// read the full id3 data
 	dsf2flac_uint8* id3tag = new dsf2flac_uint8[ id3tagLen ];
 	if (file.read_uint8(id3tag,id3tagLen)) {
-		return;
+			return;
 	}
-	
-	metadata.Parse (id3header, id3tag);
-	
+	metadata.Parse(id3tag,id3tagLen);
+
 	delete[] id3tag;
 }
 
-/**
- * bool dsfFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
- *
- * private method, pretty handy for cheking idents
- *
- */
-bool dsfFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
+bool DsfFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
 {
 	return ( a[0]==b[0] && a[1]==b[1] && a[2]==b[2] && a[3]==b[3] );
 }
 
-/**
- * void dsfFileReader::dispFileInfo()
- *
- * Can be called to display some useful info to stdout.
- *
- */
-void dsfFileReader::dispFileInfo()
+void DsfFileReader::dispFileInfo()
 {
 	printf("filesize: %lu\n",fileSz);
 	printf("metaChunkPointer: %lu\n",metaChunkPointer);

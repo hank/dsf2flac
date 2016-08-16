@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  *
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- *
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -41,20 +40,21 @@
 #include <FLAC++/metadata.h>
 #include <FLAC++/encoder.h>
 #include <sstream>
+#include <math.h>
 #include "cmdline.h"
 #include "dsd_decimator.h"
 #include "dsf_file_reader.h"
 #include "dsdiff_file_reader.h"
-#include "math.h"
 #include "tagConversion.h"
+#include "dop_packer.h"
 
-#define flacBlockLen 1000
+#define flacBlockLen 1024
 
 using boost::timer::cpu_timer;
 using boost::timer::cpu_times;
 using boost::timer::nanosecond_type;
 
-static nanosecond_type reportInterval(500000000LL);
+static nanosecond_type reportInterval(100000000LL);
 static cpu_timer timer;
 static dsf2flac_float64 lastPos;
 
@@ -72,7 +72,7 @@ void setupTimer(dsf2flac_float64 currPos)
 /**
  * void checkTimer(dsf2flac_float64 currPos, dsf2flac_float64 percent)
  *
- * called by main to report progress to the user.
+ * called to report progress to the user.
  */
 void checkTimer(dsf2flac_float64 currPos, dsf2flac_float64 percent)
 {
@@ -80,8 +80,8 @@ void checkTimer(dsf2flac_float64 currPos, dsf2flac_float64 percent)
 	nanosecond_type const elapsed(elapsed_times.system + elapsed_times.user);
 	if (elapsed >= reportInterval) {
 		printf("\33[2K\r");
-		printf("Rate: %4.2fx\t",(currPos-lastPos)/elapsed*1000000000);
-		printf("Progress: %3.1f%%",percent);
+		printf("Rate: %4.1fx\t",(currPos-lastPos)/elapsed*1000000000);
+		printf("Progress: %3.0f%%",percent);
 		fflush(stdout);
 		lastPos = currPos;
 		timer = cpu_timer();
@@ -89,17 +89,32 @@ void checkTimer(dsf2flac_float64 currPos, dsf2flac_float64 percent)
 }
 
 /**
- * int helper()
+ * muti_track_name_helper
+ *
+ * little helper to construct file names for multiple track files.
+ */
+boost::filesystem::path muti_track_name_helper(boost::filesystem::path outpath, int n) {
+	std::ostringstream prefix;
+	prefix << "track ";
+	prefix << n+1;
+	prefix << " - ";
+	boost::filesystem::path trackOutPath = outpath.parent_path() / (prefix.str() + outpath.filename().string());
+	return trackOutPath;
+}
+
+/**
+ * int track_helper()
  * 
- * converts a track at a time.
+ * converts a track at a time to PCM FLAC
  * 
  */
-int helper(
+int pcm_track_helper(
 	boost::filesystem::path outpath,
-	dsdDecimator* dec,
+	DsdDecimator* dec,
 	int bits,
 	dsf2flac_float64 scale,
 	dsf2flac_float64 tpdfDitherPeakAmplitude,
+	dsf2flac_float64 clipAmplitude,
 	dsf2flac_float64 startPos,
 	dsf2flac_float64 endPos,
 	ID3_Tag	id3tag)
@@ -115,12 +130,12 @@ int helper(
 	bool ok = true;
 	FLAC::Encoder::File encoder;
 	FLAC__StreamEncoderInitStatus init_status;
-	FLAC__StreamMetadata *metadata[2];
+	FLAC__StreamMetadata* metadata[2];
 
 	// setup the encoder
 	if(!encoder) {
 		fprintf(stderr, "ERROR: allocating encoder\n");
-		return 1;
+		return 0;
 	}
 	ok &= encoder.set_verify(true);
 	ok &= encoder.set_compression_level(5);
@@ -145,6 +160,11 @@ int helper(
 			ok = false;
 		}
 	}
+
+	// return if there is a problem with any of the flac stuff.
+	if (!ok)
+		return ok;
+
 	// creep up to the start point.
 	while (dec->getPosition() < startPos) {
 		dec->step();
@@ -154,7 +174,7 @@ int helper(
 	FLAC__int32* buffer = new FLAC__int32[bufferLen];
 	// MAIN CONVERSION LOOP //
 	while (dec->getPosition() <= endPos-flacBlockLen) {
-		dec->getSamples(buffer,bufferLen,scale,tpdfDitherPeakAmplitude);
+		dec->getSamples(buffer,bufferLen,scale,tpdfDitherPeakAmplitude,clipAmplitude);
 		if(!(ok = encoder.process_interleaved(buffer, flacBlockLen)))
 			fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
 		checkTimer(dec->getPositionInSeconds(),dec->getPositionAsPercent());
@@ -164,7 +184,7 @@ int helper(
 	buffer = new FLAC__int32[dec->getNumChannels()];
 	// creep up to the end
 	while (dec->getPosition() <= endPos) {
-		dec->getSamples(buffer,dec->getNumChannels(),scale,tpdfDitherPeakAmplitude);
+		dec->getSamples(buffer,dec->getNumChannels(),scale,tpdfDitherPeakAmplitude,clipAmplitude);
 		if(!(ok = encoder.process_interleaved(buffer, 1)))
 			fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
 		checkTimer(dec->getPositionInSeconds(),dec->getPositionAsPercent());
@@ -185,9 +205,228 @@ int helper(
 	// free things
 	FLAC__metadata_object_delete(metadata[0]);
 	FLAC__metadata_object_delete(metadata[1]);
-	return 0;
+
+	return ok;
 }
 
+/*
+ * do_pcm_conversion
+ *
+ * this function uses a dsdDecimator to do the conversion into PCM.
+ */
+int do_pcm_conversion(
+		DsdSampleReader* dsr,
+		int fs,
+		int bits,
+		bool dither,
+		dsf2flac_float64 userScale,
+		boost::filesystem::path inpath,
+		boost::filesystem::path outpath
+		)
+{
+
+	bool ok = true;
+
+	// create decimator
+	DsdDecimator dec(dsr,fs);
+	if (!dec.isValid()) {
+		printf("%s\n",dec.getErrorMsg().c_str());
+		return 0;
+	}
+
+	// calc real scale and dither amplitude
+	dsf2flac_float64 scale = userScale * pow(2.0,bits-1); // increase scale by factor of 2^23 (24bit).
+	dsf2flac_float64 tpdfDitherPeakAmplitude;
+	if (dither)
+		tpdfDitherPeakAmplitude = 1.0;
+	else
+		tpdfDitherPeakAmplitude = 0.0;
+	dsf2flac_float64 clipAmplitude = pow(2.0,bits-1)-1; // clip at max range.
+
+	setupTimer(dsr->getPositionInSeconds());
+
+	// convert each track in the file in turn
+	for (dsf2flac_uint32 n = 0; n < dsr->getNumTracks();n++) {
+
+		// get and check the start and end samples
+		dsf2flac_float64 trackStart = (dsf2flac_float64)dsr->getTrackStart(n) / dec.getDecimationRatio();
+		dsf2flac_float64 trackEnd = (dsf2flac_float64)dsr->getTrackEnd(n) / dec.getDecimationRatio();
+		if (trackStart < dec.getFirstValidSample())
+			trackStart = dec.getFirstValidSample();
+		if (trackStart >= dec.getLastValidSample() )
+			trackStart = dec.getLastValidSample() - 1;
+		if (trackEnd <= dec.getFirstValidSample())
+			trackEnd = dec.getFirstValidSample() + 1;
+		if (trackEnd > dec.getLastValidSample())
+			trackEnd = dec.getLastValidSample();
+
+		// construct an appropriate filename for multi track files.
+		boost::filesystem::path trackOutPath;
+		if (dsr->getNumTracks() > 1) {
+			trackOutPath = muti_track_name_helper(outpath,n);
+		} else {
+			trackOutPath = outpath;
+		}
+
+		printf("Output file\n\t%s\n",trackOutPath.c_str());
+		// use the pcm_track_helper
+		ok &= pcm_track_helper(trackOutPath,&dec,bits,scale,tpdfDitherPeakAmplitude,clipAmplitude,trackStart,trackEnd,dsr->getID3Tag(n));
+	}
+
+	return ok;
+}
+
+/**
+ *	dop_track_helper
+ */
+int dop_track_helper(
+	boost::filesystem::path outpath,
+	DsdSampleReader* dsr,
+	dsf2flac_int64 startPos,
+	dsf2flac_int64 endPos,
+	ID3_Tag	id3tag)
+{
+
+	// double check the start and end positions!
+	if ( startPos > dsr->getLength()-1 )
+		startPos = dsr->getLength()-1;
+	if ( endPos > dsr->getLength() )
+		endPos = dsr->getLength();
+
+	// create a dop packer object.
+	DopPacker dopp = DopPacker(dsr);
+
+	// flac vars
+	bool ok = true;
+	FLAC::Encoder::File encoder;
+	FLAC__StreamEncoderInitStatus init_status;
+	FLAC__StreamMetadata *metadata[2];
+
+	// setup the encoder
+	if(!encoder) {
+		fprintf(stderr, "ERROR: allocating encoder\n");
+		return 0;
+	}
+	ok &= encoder.set_verify(true);
+	ok &= encoder.set_compression_level(5);
+	ok &= encoder.set_channels(dsr->getNumChannels());
+	ok &= encoder.set_bits_per_sample(24);
+
+	if ( dsr->getSamplingFreq() == 2822400 ) {
+		ok &= encoder.set_sample_rate(176400);
+	} else if ( dsr->getSamplingFreq() == 5644800 ) {
+		ok &= encoder.set_sample_rate(352800);
+	} else {
+		fprintf(stderr, "ERROR: sample rate not supported by DoP\n");
+		return 0;
+	}
+	ok &= encoder.set_total_samples_estimate((endPos - startPos)/16);
+
+	// add tags and a padding block
+	if(ok) {
+		metadata[0] = id3v2_to_flac( id3tag );
+		metadata[1] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_PADDING);
+		metadata[1]->length = 2048; /* set the padding length */
+		ok = encoder.set_metadata(metadata, 2);
+	}
+
+	// initialize encoder
+	if(ok) {
+		init_status = encoder.init(outpath.c_str());
+		if(init_status != FLAC__STREAM_ENCODER_INIT_STATUS_OK) {
+			fprintf(stderr, "ERROR: initializing encoder: %s\n", FLAC__StreamEncoderInitStatusString[init_status]);
+			ok = false;
+		}
+	}
+
+	// return if there is a problem with any of the flac stuff.
+	if (!ok)
+		return ok;
+
+	// creep up to the start point.
+	while (dsr->getPosition() < startPos) {
+		dsr->step();
+	}
+	// create a FLAC__int32 buffer to hold the samples as they are converted
+	unsigned int bufferLen = dsr->getNumChannels()*flacBlockLen;
+	FLAC__int32* buffer = new FLAC__int32[bufferLen];
+	// MAIN CONVERSION LOOP //
+	while (dsr->getPosition() <= endPos-flacBlockLen*16) {
+		dopp.pack_buffer(buffer,bufferLen);
+		if(!(ok = encoder.process_interleaved(buffer, flacBlockLen)))
+			fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
+		checkTimer(dsr->getPositionInSeconds(),dsr->getPositionAsPercent());
+	}
+	// delete the old buffer and make a new one with a single sample per chan
+	delete[] buffer;
+	buffer = new FLAC__int32[dsr->getNumChannels()];
+	// creep up to the end
+	while (dsr->getPosition() <= endPos) {
+		dopp.pack_buffer(buffer,dsr->getNumChannels());
+		if(!(ok = encoder.process_interleaved(buffer, 1)))
+			fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
+		checkTimer(dsr->getPositionInSeconds(),dsr->getPositionAsPercent());
+	}
+	delete[] buffer;
+	// close the flac file
+	ok &= encoder.finish();
+	// report back to the user
+	printf("\33[2K\r");
+	printf("%3.1f%%\t",dsr->getPositionAsPercent());
+	if (ok) {
+		printf("Conversion completed sucessfully.\n");
+	} else {
+		printf("\nError during conversion.\n");
+		fprintf(stderr, "encoding: %s\n", ok? "succeeded" : "FAILED");
+		fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
+	}
+	// free things
+	FLAC__metadata_object_delete(metadata[0]);
+	FLAC__metadata_object_delete(metadata[1]);
+
+	return ok;
+
+
+	return ok;
+}
+/**
+ * int do_dop_conversion
+ *
+ * this function handles conversion into DoP encoded flac
+ *
+ */
+int do_dop_conversion(
+		DsdSampleReader* dsr,
+		boost::filesystem::path inpath,
+		boost::filesystem::path outpath
+		)
+{
+	bool ok = true;
+
+	setupTimer(dsr->getPositionInSeconds());
+
+	// convert each track in the file in turn
+	for (dsf2flac_uint32 n = 0; n < dsr->getNumTracks();n++) {
+
+		// get and check the start and end samples
+		dsf2flac_uint64 trackStart = dsr->getTrackStart(n);
+		dsf2flac_uint64 trackEnd = dsr->getTrackEnd(n);
+
+		// construct an appropriate filename for multi track files.
+		boost::filesystem::path trackOutPath;
+		if (dsr->getNumTracks() > 1) {
+			trackOutPath = muti_track_name_helper(outpath,n);
+		} else {
+			trackOutPath = outpath;
+		}
+
+		printf("Output file\n\t%s\n",trackOutPath.c_str());
+		// use the pcm_track_helper
+		ok &= dop_track_helper(trackOutPath,dsr,trackStart,trackEnd,dsr->getID3Tag(n));
+	}
+
+	return ok;
+}
 
 /**
  * int main(int argc, char **argv)
@@ -209,8 +448,9 @@ int main(int argc, char **argv)
 	int fs = args_info.samplerate_arg;
 	int bits = args_info.bits_arg;
 	bool dither = !args_info.nodither_flag;
+	bool dop = args_info.dop_flag;
 	dsf2flac_float64 userScaleDB = (dsf2flac_float64) args_info.scale_arg;
-	dsf2flac_float64 userScale = pow(10.0d,userScaleDB/20);
+	dsf2flac_float64 userScale = pow(10.0,userScaleDB/20);
 	boost::filesystem::path inpath(args_info.infile_arg);
 	boost::filesystem::path outpath;
 	if (args_info.outfile_given)
@@ -219,26 +459,18 @@ int main(int argc, char **argv)
 		outpath = inpath;
 		outpath.replace_extension(".flac");
 	}
-	// calc real scale and dither amplitude
-	dsf2flac_float64 scale = userScale * pow(2.0d,bits-1); // increase scale by factor of 2^23 (24bit).
-	dsf2flac_float64 tpdfDitherPeakAmplitude;
-	if (dither)
-		tpdfDitherPeakAmplitude = 1;
-	else
-		tpdfDitherPeakAmplitude = 0;
-		
-	//
+
 	printf("%s ",CMDLINE_PARSER_PACKAGE_NAME);
 	printf("%s\n\n",CMDLINE_PARSER_VERSION);
 
 	// pointer to the dsdSampleReader (could be any valid type).
-	dsdSampleReader* dsr;
+	DsdSampleReader* dsr;
 
-	// create either a reder for dsf or dsd
+	// create either a reader for dsf or dsd
 	if (inpath.extension() == ".dsf" || inpath.extension() == ".DSF")
-		dsr = new dsfFileReader((char*)inpath.c_str());
+		dsr = new DsfFileReader((char*)inpath.c_str());
 	else if (inpath.extension() == ".dff" || inpath.extension() == ".DFF")
-		dsr = new dsdiffFileReader((char*)inpath.c_str());
+		dsr = new DsdiffFileReader((char*)inpath.c_str());
 	else {
 		printf("Sorry, only .dff or .dff input files are supported\n");
 		return 0;
@@ -251,52 +483,19 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	
-	// create decimator
-	dsdDecimator dec(dsr,fs);
-	if (!dec.isValid()) {
-		printf("%s\n",dec.getErrorMsg().c_str());
-		return 0;
-	}
+	// do the conversion into PCM or DoP
+	if (!dop) {
+		// feedback some info to the user
+		printf("Input file\n\t%s\n",inpath.c_str());
+		printf("Output format\n\tSampleRate: %dHz\n\tDepth: %dbit\n\tDither: %s\n\tScale: %1.1fdB\n",fs, bits, (dither)?"true":"false",userScaleDB);
+		//printf("\tIdleSample: 0x%02x\n",dsr->getIdleSample());
 
-	// feedback some info to the user
-	printf("Input file\n\t%s\n",inpath.c_str());
-	printf("Output format\n\tSampleRate: %dHz\n\tDepth: %dbit\n\tDither: %s\n\tScale: %1.1fdB\n",fs, bits, (dither)?"true":"false",userScaleDB);
-	//printf("\tIdleSample: 0x%02x\n",dsr->getIdleSample());
-	
-	setupTimer(dsr->getPositionInSeconds());
-	
-	// convert each track in the file in turn
-	for (dsf2flac_uint32 n = 0; n < dsr->getNumTracks();n++) {
-		
-		// get and check the start and end samples
-		dsf2flac_float64 trackStart = (dsf2flac_float64)dsr->getTrackStart(n) / dec.getDecimationRatio();
-		dsf2flac_float64 trackEnd = (dsf2flac_float64)dsr->getTrackEnd(n) / dec.getDecimationRatio();
-		if (trackStart < dec.getFirstValidSample())
-			trackStart = dec.getFirstValidSample();
-		if (trackStart >= dec.getLastValidSample() )
-			trackStart = dec.getLastValidSample() - 1;
-		if (trackEnd <= dec.getFirstValidSample())
-			trackEnd = dec.getFirstValidSample() + 1;
-		if (trackEnd > dec.getLastValidSample())
-			trackEnd = dec.getLastValidSample();
-			
-		// construct an appropriate filename for multi track files.
-		boost::filesystem::path trackOutPath;
-		if (dsr->getNumTracks() > 1)
-		{
-			std::ostringstream prefix;
-			prefix << "track ";
-			prefix << n+1;
-			prefix << " - ";
-			trackOutPath = outpath.parent_path() / (prefix.str() + outpath.filename().string());
-		} else
-		{
-			trackOutPath = outpath;
-		}
-		
-		printf("Output file\n\t%s\n",trackOutPath.c_str());
-		
-		// use the helper
-		helper(trackOutPath,&dec,bits,scale,tpdfDitherPeakAmplitude,trackStart,trackEnd,dsr->getID3Tag(n));
+		return do_pcm_conversion(dsr,fs,bits,dither,userScale,inpath,outpath);
+	} else {
+		// feedback some info to the user
+		printf("Input file\n\t%s\n",inpath.c_str());
+		printf("Output format\n\tDSD samples packed as DoP\n");
+
+		return do_dop_conversion(dsr,inpath,outpath);
 	}
 }

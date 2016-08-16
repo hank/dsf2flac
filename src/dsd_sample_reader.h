@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  * 
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- * 
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -22,7 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * 
- * Acknowledgements
+ * Acknowledgments
  * 
  * Many thanks to the following authors and projects whose work has greatly
  * helped the development of this tool.
@@ -36,17 +35,6 @@
  * 
  */
  
- /**
-  * dsf_sample_reader.h
-  * 
-  * Header file for the class dsfSampleReader.
-  * 
-  * Abstract class defining anything which reads dsd samples from something.
-  * If someone feels like it they could write an implementation of this class
-  * and allow this convertor to work with other dsd sources.
-  * 
-  */
-
 #ifndef DSDSAMPLEREADER_H
 #define DSDSAMPLEREADER_H
 
@@ -55,42 +43,92 @@
 #include <boost/circular_buffer.hpp>
 #include "dsf2flac_types.h"
 
-static const dsf2flac_uint32 defaultBufferLength = 5000;
+static const dsf2flac_uint32 defaultBufferLength = 5000; //!< The default length of the circular buffers.
 
-class dsdSampleReader
+/**
+ * Abstract class defining anything which reads dsd samples from something.
+ */
+class DsdSampleReader
 {
 public:
-	// constructor and destructor
-	dsdSampleReader();
-	virtual ~dsdSampleReader();
-	// CHILD CLASSES SHOULD OVERRIDE THESE!
-	virtual bool step() {return false;}; // move buffer forward by 1byte (8bits) of sample data.
-	virtual void rewind() {}; // resets the dsd reader to the start of the dsd data. Implementors should call clearBuffer.
-	virtual dsf2flac_int64  getLength() {return 1;}; // length of file in samples
-	virtual dsf2flac_uint32 getNumChannels() {return 2;}; // number of channels in the file
-	virtual dsf2flac_uint32 getSamplingFreq() {return 44100*64;}; // the sampling freq of the dsd data
-	ID3_Tag getID3Tag() {return getID3Tag(1);};
-	virtual ID3_Tag getID3Tag(dsf2flac_uint32 trackNum) {return NULL;};
-	virtual bool msbIsYoungest() {return true;} // the data is stored in 8-bit chars, returns true if the left most bit (msb) is the youngest.
-	virtual dsf2flac_uint8 getIdleSample() { return 0x69; }; // returns the idle tone used by this reader.
-	virtual bool samplesAvailable() { return getPosition()<getLength(); }; // false when no more samples left
-	virtual dsf2flac_uint32 getNumTracks() {return 1;}; // the number of audio tracks in the dsd data
-	virtual dsf2flac_uint64 getTrackStart(dsf2flac_uint32 trackNum) { return 0; } // return the index to the first sample of the nth track
-	virtual dsf2flac_uint64 getTrackEnd(dsf2flac_uint32 trackNum) { return getLength(); } // return the index to the first sample of the nth track
-	// positioning.
-	// public methods
-	boost::circular_buffer<dsf2flac_uint8>* getBuffer(); // get the char sample buffers (1 per channel) by default filled with getIdleSample()
-	bool setBufferLength(dsf2flac_uint32 bufferLength); // you can use this to set the length of the buffer WARNING: causes the file to be rewound!
-	dsf2flac_uint32 getBufferLength(); // return the length of the circular buffers
-	dsf2flac_int64 getPosition() {return posMarker*samplesPerChar;}; // current position in the file in dsd samples
-	dsf2flac_int64 getPosition(dsf2flac_int64 bufferPos) { return getPosition() - bufferPos; }; // get the position in dsd samples in relation to a certain position in the buffer.
-	dsf2flac_float64 getPositionInSeconds(); // current position in the file in seconds
-	dsf2flac_float64 getPositionAsPercent();
-	dsf2flac_float64 getLengthInSeconds(); // length of file in seconds
-	bool isValid(); // returns false if the reader is invalid
+
+	/// Constructor
+	DsdSampleReader();
+	/// Deconstructor
+	virtual ~DsdSampleReader();
+
+	/// Return false if the reader is invalid (format/file error for example).
+	bool isValid();
+	/// Returns a message explaining why the reader is invalid.
 	std::string getErrorMsg();
-	// static method to help out with latin1 charset
+
+	/// Returns the DSD sampling rate of this reader (Hz).
+	virtual dsf2flac_uint32 getSamplingFreq() = 0;
+	/// Returns the number of channels in the reader.
+	virtual dsf2flac_uint32 getNumChannels() = 0;
+	/// Returns the total number of DSD samples in the reader
+	virtual dsf2flac_int64  getLength() = 0;
+	/// Returns the total length of the reader in seconds.
+	dsf2flac_float64 getLengthInSeconds();
+	/// Returns the number of audio tracks in the reader
+	virtual dsf2flac_uint32 getNumTracks() {return 1;};
+	/// Returns the start position of the specified track.
+	virtual dsf2flac_uint64 getTrackStart(dsf2flac_uint32 trackNum) { return 0; }
+	/// Returns the end position of the specified track.
+	virtual dsf2flac_uint64 getTrackEnd(dsf2flac_uint32 trackNum) { return getLength(); }
+
+	/** Step the reader forward by 8 DSD samples.
+	 *  This causes the next 8 DSD samples to be added into the front of the circular buffers (one uint8).
+	 */
+	virtual bool step() = 0;
+	/// Returns false if there are no more samples left in the reader.
+	virtual bool samplesAvailable() { return getPosition()<getLength(); };
+
+	/// Return the current position of the reader in DSD samples.
+	/// This is the position of the first entry in the circular buffers.
+	dsf2flac_int64 getPosition() {return posMarker*samplesPerChar;};
+	/// Return the current position of the reader in seconds.
+	dsf2flac_float64 getPositionInSeconds();
+	/// Return the current position of the reader as a percent of the total length.
+	dsf2flac_float64 getPositionAsPercent();
+
+	/// Set the reader position back to the start of the DSD data.
+	/// Note that child classes implementing this method must call clearBuffer();
+	virtual void rewind() = 0;
+
+	/**
+	 * Returns an array of circular buffers, one for each track.
+	 * Each circular buffer contains getBufferLength() uint8 numbers.
+	 * The DSD samples are packed into these uint8 numbers.
+	 * The next uint8 set of 8 DSD samples is added into position 0 when step() is called.
+	 * By default the buffer is filled with getIdleSample().
+	 */
+	boost::circular_buffer<dsf2flac_uint8>* getBuffer();
+	/// Returns the length of the buffers (the number of uint8 numbers, NOT the number of DSD samples).
+	dsf2flac_uint32 getBufferLength();
+	/// Sets the length of the buffers (the number of uint8 numbers, NOT the number of DSD samples).
+	/// Note that this will cause rewind() to be called.
+	bool setBufferLength(dsf2flac_uint32 bufferLength);
+	/// Describes the order that the samples are packed into the int8 buffer entries.
+	virtual bool msbIsPlayedFirst() = 0;
+
+	/// Return the ID3 tag of the first track in this reader.
+	/// Useful for when there is only a single track in the reader.
+	ID3_Tag getID3Tag() {return getID3Tag(1);};
+	/// Return the ID3 tag corresponding to the provided track number.
+	virtual ID3_Tag getID3Tag(dsf2flac_uint32 trackNum) {return NULL;};
+
+	/// Return the idle tone used by this reader, by default the buffers are populated with this idle tone.
+	virtual dsf2flac_uint8 getIdleSample() { return 0x69; };
+
+	/// convert latin1 encoded char into utf8.
 	static char* latin1_to_utf8(char* latin1);
+protected:
+	/// Allocates the circular buffers.
+	/// Child classes need to call this once they know the number of channels!
+	void allocateBuffer();
+	/// Clear the buffers and fill with idleSample.
+	void clearBuffer();
 protected:
 	// protected properties
 	boost::circular_buffer<dsf2flac_uint8>* circularBuffers;
@@ -100,11 +138,6 @@ protected:
 	// to hold feedback on errors
 	bool valid;
 	std::string errorMsg;
-protected:
-	// protected methods
-	void allocateBuffer(); //implementors need to call this once they know the number of channels!
-	void clearBuffer(); // fill entire buffer with idleSample
-	void resizeBuffer(); // resize buffer, fill with idleSample, call rewind
 private:
 	// private properties
 	dsf2flac_uint32 bufferLength;

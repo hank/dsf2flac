@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  * 
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- * 
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -42,7 +41,6 @@
 #include "dsd_sample_reader.h" // Base class: dsdSampleReader
 #include "fstream_plus.h"
 #include <boost/ptr_container/ptr_vector.hpp>
-
 
 // this struct holds comments
 typedef struct{
@@ -94,29 +92,97 @@ typedef struct {
 } DSTFrameInformation;
 
 
-
-class dsdiffFileReader : public dsdSampleReader
+/**
+ * This class extends dsdSampleReader providing access to dsf samples and other info
+ * from dsdff files.
+ *
+ * Editied master files are supported, as is the undocumented ID3 chunk.
+ * DST compression is also supported.
+ */
+class DsdiffFileReader : public DsdSampleReader
 {
 public:
-	// constructor and destructor
-	dsdiffFileReader(char* filePath);
-	virtual ~dsdiffFileReader();
+	/** Class constructor.
+	 *  filePath must be a valid dsdff file location.
+	 *  If there is an issue reading or loading the file then isValid() will be false.
+	 */
+	DsdiffFileReader(char* filePath);
+	/** Class destructor.
+	 *  Closes the file and frees the internal buffers.
+	 */
+	virtual ~DsdiffFileReader();
 public:
-	// public overriden from dsdSampleReader
+	// public overridden from dsdSampleReader
 	bool step();
 	void rewind();
 	dsf2flac_int64 getLength() {return sampleCountPerChan;};
 	dsf2flac_uint32 getNumChannels() {return chanNum;};
 	dsf2flac_uint32 getSamplingFreq() {return samplingFreq;};
-	bool msbIsYoungest() { return false;}
-	bool samplesAvailable() { return !file.eof() && dsdSampleReader::samplesAvailable(); }; // false when no more samples left
+	bool msbIsPlayedFirst() { return false;}
+	bool samplesAvailable() { return !file.eof() && DsdSampleReader::samplesAvailable(); }; // false when no more samples left
 	ID3_Tag getID3Tag(dsf2flac_uint32 trackNum);
 	dsf2flac_uint32 getNumTracks() {return numTracks;}; // the number of audio tracks in the dsd data
 	dsf2flac_uint64 getTrackStart(dsf2flac_uint32 trackNum);// return the index to the first sample of the nth track
 	dsf2flac_uint64 getTrackEnd(dsf2flac_uint32 trackNum); // return the index to the first sample of the nth track
-public:
-	// other public methods
+public: // other public methods
+	/// Can be called to display some useful info to stdout.
 	void dispFileInfo();
+private: // private methods
+	/// Allocate the buffer to hold samples
+	void allocateSampleBuffer();
+	/// Read the next block of samples into the buffer.
+	bool readNextBlock();
+	/// Finds the number, start and end points of the tracks in the file.
+	/// Must be called after the marker chunks have been read.
+	void processTracks();
+	// Called on create. Reads lots of info from the file.
+	bool readHeaders();
+	static bool checkIdent(dsf2flac_int8* a, dsf2flac_int8* b); // MUST be used with the char[4]s or you'll get segfaults!
+	/// A little helper to read chunk headers info.
+	bool readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart);
+	/// A little helper to read chunk headers info.
+	bool readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart, dsf2flac_uint64 *chunkSz);
+	/// read data from a FRM8 chunk
+	bool readChunk_FRM8(dsf2flac_uint64 chunkStart);
+	/// read data from a FVER chunk
+	bool readChunk_FVER(dsf2flac_uint64 chunkStart);
+	/// read data from a PROP chunk
+	bool readChunk_PROP(dsf2flac_uint64 chunkStart);
+	/// read data from a FS chunk
+	bool readChunk_FS(dsf2flac_uint64 chunkStart);
+	/// read data from a CHNL chunk
+	bool readChunk_CHNL(dsf2flac_uint64 chunkStart);
+	/// read data from a CMPR chunk
+	bool readChunk_CMPR(dsf2flac_uint64 chunkStart);
+	/// read data from a ABSS chunk
+	bool readChunk_ABSS(dsf2flac_uint64 chunkStart);
+	/// read data from a DSD chunk
+	bool readChunk_DSD(dsf2flac_uint64 chunkStart);
+	/// read data from a DST chunk
+	bool readChunk_DST(dsf2flac_uint64 chunkStart);
+	/// read data from a DSTF chunk
+	bool readChunk_DSTF(dsf2flac_uint64 chunkStart);
+	/// read data from a COMT chunk
+	bool readChunk_COMT(dsf2flac_uint64 chunkStart);
+	/// read data from a LSCO chunk
+	bool readChunk_LSCO(dsf2flac_uint64 chunkStart);
+	/// read data from a ID3 chunk
+	bool readChunk_ID3(dsf2flac_uint64 chunkStart);
+	/// read data from a DIIN chunk
+	bool readChunk_DIIN(dsf2flac_uint64 chunkStart);
+	/// read data from a EMID chunk
+	bool readChunk_EMID(dsf2flac_uint64 chunkStart);
+	/// read data from a MARK chunk
+	bool readChunk_MARK(dsf2flac_uint64 chunkStart);
+	/// read data from a DSTI chunk
+	bool readChunk_DSTI(dsf2flac_uint64 chunkStart);
+	/// read data from a FRTE chunk
+	bool readChunk_FRTE(dsf2flac_uint64 chunkStart);
+
+	/// Can be called to display a DsdiffComment to stdout.
+	void dispComment(DsdiffComment c);
+	/// Can be called to display DsdiffMarker marker info to stdout.
+	void dispMarker(DsdiffMarker m);
 private:
 	// private variables
 	fstreamPlus file;
@@ -150,37 +216,6 @@ private:
 	dsf2flac_uint32 sampleBufferLenPerChan;
 	dsf2flac_int64 bufferCounter; // stores the index to the current blockBuffer
 	dsf2flac_int64 bufferMarker; // stores the current position in the blockBuffer
-	// private methods
-	void allocateSampleBuffer();
-	bool readNextBlock();
-	void processTracks();
-	// all below here are for reading the headers
-	bool readHeaders();
-	static bool checkIdent(dsf2flac_int8* a, dsf2flac_int8* b); // MUST be used with the char[4]s or you'll get segfaults!
-	bool readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart);
-	bool readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart, dsf2flac_uint64 *chunkSz);
-	// readers for specific types of chunk (return true if loaded ok)
-	bool readChunk_FRM8(dsf2flac_uint64 chunkStart);
-	bool readChunk_FVER(dsf2flac_uint64 chunkStart);
-	bool readChunk_PROP(dsf2flac_uint64 chunkStart);
-	bool readChunk_FS(dsf2flac_uint64 chunkStart);
-	bool readChunk_CHNL(dsf2flac_uint64 chunkStart);
-	bool readChunk_CMPR(dsf2flac_uint64 chunkStart);
-	bool readChunk_ABSS(dsf2flac_uint64 chunkStart);
-	bool readChunk_DSD(dsf2flac_uint64 chunkStart);
-	bool readChunk_DST(dsf2flac_uint64 chunkStart);
-	bool readChunk_DSTF(dsf2flac_uint64 chunkStart);
-	bool readChunk_COMT(dsf2flac_uint64 chunkStart);
-	bool readChunk_LSCO(dsf2flac_uint64 chunkStart);
-	bool readChunk_ID3(dsf2flac_uint64 chunkStart);
-	bool readChunk_DIIN(dsf2flac_uint64 chunkStart);
-	bool readChunk_EMID(dsf2flac_uint64 chunkStart);
-	bool readChunk_MARK(dsf2flac_uint64 chunkStart);
-	bool readChunk_DSTI(dsf2flac_uint64 chunkStart);
-	bool readChunk_FRTE(dsf2flac_uint64 chunkStart);
-	
-	void dispComment(DsdiffComment c);
-	void dispMarker(DsdiffMarker m);
 	
 };
 

@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  * 
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- * 
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -35,45 +34,56 @@
  * Jesus R - www.sonore.us
  * 
  */
- 
- /**
-  * dsf_file_reader.h
-  * 
-  * Header file for the class dsfFileReader.
-  * 
-  * This class extends dsdSampleReader providing acces to dsd samples and other info
-  * from dsf files.
-  * 
-  * Some of the rarer features of dsf are not well tested due to a lack of files:
-  * dsd64
-  * 8bit dsd
-  * 
-  */
 
 #ifndef DSFFILEREADER_H
 #define DSFFILEREADER_H
 
-#include "dsd_sample_reader.h" // Base class: dsdSampleReader
-#include "fstream_plus.h"
+#include <dsd_sample_reader.h> // Base class: dsdSampleReader
+#include <fstream_plus.h>
 
-class dsfFileReader : public dsdSampleReader
+/**
+ * This class extends dsdSampleReader providing access to dsd samples and other info
+ * from dsf files.
+ *
+ * Some of the rarer features of dsf are not well tested due to a lack of files:
+ * 8bit dsd
+ */
+class DsfFileReader : public DsdSampleReader
 {
 public:
-	// constructor and destructor
-	dsfFileReader(char* filePath);
-	virtual ~dsfFileReader();
-public:
-	// methods overriding dsdSampleReader
+	/** Class constructor.
+	 *  filePath must be a valid dsf file location.
+	 *  If there is an issue reading or loading the file then isValid() will be false.
+	 */
+	DsfFileReader(char* filePath);
+	/** Class destructor.
+	 *  Closes the file and frees the internal buffers.
+	 */
+	virtual ~DsfFileReader();
+public: // methods overriding dsdSampleReader
+
+	dsf2flac_uint32 getSamplingFreq() {return samplingFreq;};
 	bool step();
 	void rewind();
 	dsf2flac_int64 getLength() {return sampleCount;};
 	dsf2flac_uint32 getNumChannels() {return chanNum;};
-	dsf2flac_uint32 getSamplingFreq() {return samplingFreq;};
-	bool samplesAvailable() { return !file.eof() && dsdSampleReader::samplesAvailable(); }; // false when no more samples left
+	bool msbIsPlayedFirst() { return true;}
+	bool samplesAvailable() { return !file.eof() && DsdSampleReader::samplesAvailable(); }; // false when no more samples left
 	ID3_Tag getID3Tag(dsf2flac_uint32 trackNum) {return metadata;}
 public:
-	// other public methods
+	/// Can be called to display some useful info to stdout.
 	void dispFileInfo();
+private:
+	/// Allocates the block buffer which holds the dsd data read from the file for when it is required by the circular buffer.
+	void allocateBlockBuffer();
+	/// Reads lots of info from the file.
+	bool readHeaders();
+	/// Attempts to read the metadata from the end of the dsf file.
+	void readMetadata();
+	/// This private function is called whenever new data from the file is needed for the block buffer.
+	bool readNextBlock();
+	/// A handy little helper for checking idents.
+	static bool checkIdent(dsf2flac_int8* a, dsf2flac_int8* b); // MUST be used with the char[4]s or you'll get segfaults!
 private:
 	// private variables
 	char* filePath;
@@ -95,12 +105,6 @@ private:
 	dsf2flac_uint8** blockBuffer; // used to store blocks of raw data from the file
 	dsf2flac_int64 blockCounter; // stores the index to the current blockBuffer
 	dsf2flac_int64 blockMarker; // stores the current position in the blockBuffer
-	// private methods
-	void allocateBlockBuffer();
-	bool readHeaders();
-	void readMetadata();
-	bool readNextBlock();
-	static bool checkIdent(dsf2flac_int8* a, dsf2flac_int8* b); // MUST be used with the char[4]s or you'll get segfaults!
 };
 
 #endif // DSFFILEREADER_H

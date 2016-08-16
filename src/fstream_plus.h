@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  * 
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- * 
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -22,7 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * 
- * Acknowledgements
+ * Acknowledgments
  * 
  * Many thanks to the following authors and projects whose work has greatly
  * helped the development of this tool.

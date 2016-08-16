@@ -1,9 +1,8 @@
-/**
+/*
  * dsf2flac - http://code.google.com/p/dsf2flac/
  *
  * A file conversion tool for translating dsf dsd audio files into
  * flac pcm audio files.
- *
  *
  * Copyright (c) 2013 by respective authors.
  *
@@ -22,7 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  *
- * Acknowledgements
+ * Acknowledgments
  *
  * Many thanks to the following authors and projects whose work has greatly
  * helped the development of this tool.
@@ -35,6 +34,8 @@
  * Jesus R - www.sonore.us
  *
  */
+
+
 #include "dsdiff_file_reader.h"
 #include "iostream"
 #include "libdstdec/dst_init.h"
@@ -43,7 +44,7 @@ static bool chanIdentsAllocated = false;
 static bool sampleBufferAllocated = false;
 static ebunch dstEbunch;
 static bool dstEbunchAllocated = false;
-dsdiffFileReader::dsdiffFileReader(char* filePath) : dsdSampleReader()
+DsdiffFileReader::DsdiffFileReader(char* filePath) : DsdSampleReader()
 {
 	// set some defaults
 	ast.hours = 0;
@@ -81,7 +82,8 @@ dsdiffFileReader::dsdiffFileReader(char* filePath) : dsdSampleReader()
 	
 	return;
 }
-dsdiffFileReader::~dsdiffFileReader()
+
+DsdiffFileReader::~DsdiffFileReader()
 {
 	// close the file
 	file.close();
@@ -117,26 +119,16 @@ dsdiffFileReader::~dsdiffFileReader()
 		DST_CloseDecoder(&dstEbunch);
 	}
 }
-/**
- * void dsdiffFileReader::allocateSampleBuffer()
- *
- * allocate the buffer to hold samples
- *
- */
-void dsdiffFileReader::allocateSampleBuffer()
+
+void DsdiffFileReader::allocateSampleBuffer()
 {
 	if (sampleBufferAllocated)
 		return;
 	sampleBuffer = new dsf2flac_uint8[getNumChannels()*sampleBufferLenPerChan];
 	sampleBufferAllocated = true;
 }
-/**
- * void dsdiffFileReader::rewind()
- *
- * Reset the position back to the start of the file
- *
- */
-void dsdiffFileReader::rewind()
+
+void DsdiffFileReader::rewind()
 {
 	// position the file at the start of the data chunk
 	if (file.seekg(sampleDataPointer)) {
@@ -151,13 +143,7 @@ void dsdiffFileReader::rewind()
 	clearBuffer();
 }
 
-/**
- * bool dsdiffFileReader::readNextBlock()
- *
- * read a block of samples into the buffer.
- *
- */
-bool dsdiffFileReader::readNextBlock() {
+bool DsdiffFileReader::readNextBlock() {
 	
 	bool ok = true;
 	// return false if this is the end of the file
@@ -221,14 +207,8 @@ bool dsdiffFileReader::readNextBlock() {
 
 	return ok;
 }
-/**
- * void dsdiffFileReader::step()
- *
- * Increments the position in the file by 8 dsd samples (1 byte of data).
- * The block buffers are updated with the new samples.
- *
- */
-bool dsdiffFileReader::step()
+
+bool DsdiffFileReader::step()
 {
 	bool ok = true;
 	
@@ -249,45 +229,27 @@ bool dsdiffFileReader::step()
 	posMarker++;
 	return ok;
 }
-/** 
- * dsf2flac_uint64 dsdiffFileReader::getTrackStart(dsf2flac_uint32 trackNum);
- * 
- * return the index to the first sample of the nth track
- */
-dsf2flac_uint64 dsdiffFileReader::getTrackStart(dsf2flac_uint32 trackNum) {
+
+dsf2flac_uint64 DsdiffFileReader::getTrackStart(dsf2flac_uint32 trackNum) {
 	if (trackNum >= numTracks)
 		return 0;
 	return trackStartPositions[trackNum];
 }
-/** 
- * dsf2flac_uint64 dsdiffFileReader::getTrackEnd(dsf2flac_uint32 trackNum);
- * 
- * return the index to the last sample of the nth track
- */
-dsf2flac_uint64 dsdiffFileReader::getTrackEnd(dsf2flac_uint32 trackNum) {
+
+dsf2flac_uint64 DsdiffFileReader::getTrackEnd(dsf2flac_uint32 trackNum) {
 	if (trackNum >= numTracks)
 		return getLength();
 	return trackEndPositions[trackNum];
 		
 }
-/** 
- * ID3_Tag dsdiffFileReader::getID3Tag(dsf2flac_uint32 trackNum);
- * 
- * Public function, returns id3tags for the specified track
- * or NULL if there is no such tag.
- */
- ID3_Tag dsdiffFileReader::getID3Tag(dsf2flac_uint32 trackNum) {
+
+ ID3_Tag DsdiffFileReader::getID3Tag(dsf2flac_uint32 trackNum) {
 	if (trackNum >= tags.size())
 		return NULL;
 	return tags[trackNum];
 }
-/**
- * void dsdiffFileReader::readHeaders()
- *
- * Private function, called on create. Reads lots of info from the file.
- *
- */
-bool dsdiffFileReader::readHeaders()
+
+bool DsdiffFileReader::readHeaders()
 {
 	// look for the FRM8 chunk (probably at the start of the data).
 	dsf2flac_int8 ident[5];
@@ -313,7 +275,8 @@ bool dsdiffFileReader::readHeaders()
 	}
 	return frm8valid;
 }
-bool dsdiffFileReader::readChunk_FRM8(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_FRM8(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -382,7 +345,8 @@ bool dsdiffFileReader::readChunk_FRM8(dsf2flac_uint64 chunkStart)
 	} else
 		return true;
 }
-bool dsdiffFileReader::readChunk_FVER(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_FVER(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -401,7 +365,8 @@ bool dsdiffFileReader::readChunk_FVER(dsf2flac_uint64 chunkStart)
 	};
 	return true;
 }
-bool dsdiffFileReader::readChunk_PROP(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_PROP(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -466,7 +431,8 @@ bool dsdiffFileReader::readChunk_PROP(dsf2flac_uint64 chunkStart)
 	} else
 		return true;
 }
-bool dsdiffFileReader::readChunk_FS(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_FS(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -484,7 +450,8 @@ bool dsdiffFileReader::readChunk_FS(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_CHNL(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_CHNL(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -513,7 +480,8 @@ bool dsdiffFileReader::readChunk_CHNL(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_CMPR(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_CMPR(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -545,7 +513,8 @@ bool dsdiffFileReader::readChunk_CMPR(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_ABSS(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_ABSS(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -579,7 +548,8 @@ bool dsdiffFileReader::readChunk_ABSS(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_ID3(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_ID3(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -597,21 +567,28 @@ bool dsdiffFileReader::readChunk_ID3(dsf2flac_uint64 chunkStart)
 		return false;
 	}
 	// check this is actually an id3 header
-	dsf2flac_int64 id3tagLen;
-	if ( (id3tagLen = ID3_IsTagHeader(id3header)) > -1 )
+	dsf2flac_int32 id3tagLen;
+	if ( (id3tagLen = ID3_Tag::IsV2Tag(id3header)) < 1 ) {
 		return false;
-	// read the tag
+	}
+	// return to the start of the metadata
+	if (file.seekg(-ID3_TAGHEADERSIZE,std::ios_base::cur)) {
+		file.clear();
+		return false;
+	}
+	// read the full id3 data
 	dsf2flac_uint8* id3tag = new dsf2flac_uint8[ id3tagLen ];
 	if (file.read_uint8(id3tag,id3tagLen)) {
 		return false;
 	}
 	ID3_Tag t;
-	t.Parse (id3header, id3tag);
+	t.Parse(id3tag,id3tagLen);
 	tags.push_back(t);
 	delete[] id3tag;
 	return true;
 }
-bool dsdiffFileReader::readChunk_LSCO(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_LSCO(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -629,7 +606,8 @@ bool dsdiffFileReader::readChunk_LSCO(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_DIIN(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_DIIN(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -662,7 +640,8 @@ bool dsdiffFileReader::readChunk_DIIN(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_EMID(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_EMID(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -685,7 +664,8 @@ bool dsdiffFileReader::readChunk_EMID(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_DSTI(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_DSTI(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -713,7 +693,8 @@ bool dsdiffFileReader::readChunk_DSTI(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-bool dsdiffFileReader::readChunk_MARK(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_MARK(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -776,7 +757,6 @@ bool dsdiffFileReader::readChunk_MARK(dsf2flac_uint64 chunkStart)
 	return true;
 }
 
-
 dsf2flac_uint64 decodeMarkerPosition(DsdiffAst ast, DsdiffMarker marker, dsf2flac_uint32 fs) {
 	dsf2flac_int64 dhr = (dsf2flac_int64) marker.hours - (dsf2flac_int64) ast.hours;
 	dsf2flac_int64 dmi = (dsf2flac_int64) marker.minutes - (dsf2flac_int64) ast.minutes;
@@ -787,8 +767,7 @@ dsf2flac_uint64 decodeMarkerPosition(DsdiffAst ast, DsdiffMarker marker, dsf2fla
 	return pos; // note div by 8 to give position in chars
 }
 
-
-void dsdiffFileReader::processTracks() {
+void DsdiffFileReader::processTracks() {
 	
 	numTracks = 0;
 	dsf2flac_uint64 thisTrackStart = 0;
@@ -828,7 +807,8 @@ void dsdiffFileReader::processTracks() {
 	
 	return;
 }
-void dsdiffFileReader::dispMarker(DsdiffMarker m)
+
+void DsdiffFileReader::dispMarker(DsdiffMarker m)
 {
 	printf("\nmarkType:\t%u\n",m.markType);
 	printf("time:\t%u:%u:%u::%u + %u\n",m.hours,m.minutes,m.seconds,m.samples,m.offset);
@@ -837,7 +817,8 @@ void dsdiffFileReader::dispMarker(DsdiffMarker m)
 	printf("markerText:\t%s\n",m.markerText);
 	//printf("count:\t\t%u\n",m.count);
 }
-bool dsdiffFileReader::readChunk_COMT(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_COMT(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -900,7 +881,8 @@ bool dsdiffFileReader::readChunk_COMT(dsf2flac_uint64 chunkStart)
 	}
 	return true;
 }
-void dsdiffFileReader::dispComment(DsdiffComment c)
+
+void DsdiffFileReader::dispComment(DsdiffComment c)
 {
 	printf("timeStampYear:\t%u\n",c.timeStampYear);
 	printf("timeStampMonth:\t%u\n",c.timeStampMonth);
@@ -912,7 +894,8 @@ void dsdiffFileReader::dispComment(DsdiffComment c)
 	printf("count:\t\t%u\n",c.count);
 	printf("commentText:\t%s\n",c.commentText);
 }
-bool dsdiffFileReader::readChunk_DSD(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_DSD(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -931,7 +914,8 @@ bool dsdiffFileReader::readChunk_DSD(dsf2flac_uint64 chunkStart)
 	sampleCountPerChan = (chunkLen - 12)/chanNum*samplesPerChar;
 	return true;
 }
-bool dsdiffFileReader::readChunk_DSTF(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_DSTF(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -956,7 +940,8 @@ bool dsdiffFileReader::readChunk_DSTF(dsf2flac_uint64 chunkStart)
 	
 	return true;
 }
-bool dsdiffFileReader::readChunk_DST(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_DST(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -998,7 +983,8 @@ bool dsdiffFileReader::readChunk_DST(dsf2flac_uint64 chunkStart)
 	}
 	return found_frte && found_dstf;
 }
-bool dsdiffFileReader::readChunk_FRTE(dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunk_FRTE(dsf2flac_uint64 chunkStart)
 {
 	// read the header so that we are certain we are in the correct place.
 	dsf2flac_int8 ident[5];
@@ -1023,18 +1009,14 @@ bool dsdiffFileReader::readChunk_FRTE(dsf2flac_uint64 chunkStart)
 	dstInfo.frameSizeInBytesPerChan = dstInfo.frameSizeInSamplesPerChan/samplesPerChar;
 	return true;
 }
-/**
- * bool dsdiffFileReader::readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart)
- *
- * Private method: a little helper to get rid of repetitive code!
- *
- */
-bool dsdiffFileReader::readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart)
+
+bool DsdiffFileReader::readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart)
 {
 	dsf2flac_uint64 chunkSz;
 	return readChunkHeader(ident,chunkStart,&chunkSz);
 }
-bool dsdiffFileReader::readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart, dsf2flac_uint64* chunkSz)
+
+bool DsdiffFileReader::readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chunkStart, dsf2flac_uint64* chunkSz)
 {
 	// make sure we are at the start of the chunk
 	if (file.seekg(chunkStart)) {
@@ -1060,11 +1042,13 @@ bool dsdiffFileReader::readChunkHeader(dsf2flac_int8* ident, dsf2flac_uint64 chu
 		chunkSz[0] += 12;
 	return true;
 }
-bool dsdiffFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
+
+bool DsdiffFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
 {
 	return ( a[0]==b[0] && a[1]==b[1] && a[2]==b[2] && a[3]==b[3] );
 }
-void dsdiffFileReader::dispFileInfo()
+
+void DsdiffFileReader::dispFileInfo()
 {
 	printf("dsdiffVersion: %08x\n",dsdiffVersion);
 	printf("samplingRate: %u\n",samplingFreq);

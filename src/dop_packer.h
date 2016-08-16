@@ -35,11 +35,42 @@
  *
  */
 
+#ifndef DOPPACKER_H_
+#define DOPPACKER_H_
 
-#include "FLAC++/metadata.h"
-#include "id3/tag.h"
+#include "dsf2flac_types.h"
+#include "dsd_sample_reader.h"
 
-FLAC__StreamMetadata* id3v2_to_flac(ID3_Tag id3);
 
-char* latin1_to_utf8(char* latin1);
-unsigned char* latin1_to_utf8(unsigned char* latin1);
+/**
+ * A class which takes DSD samples from a DsdSampleReader and packs them into DOP encoded PCM.
+ *
+ */
+class DopPacker {
+public:
+	/**
+	 * Class constructor. reader can be any type of DSD sample reader.
+	 */
+	DopPacker(DsdSampleReader *reader);
+
+	/**
+	 * Class destructor.
+	 */
+	virtual ~DopPacker();
+
+	/**
+	 * Read DOP PCM samples from the reader.
+	 * The input "buffer" will be filled with DoP encoded 24bit PCM samples.
+	 * "buffer" must be at least "bufferLen" long.
+	 * "bufferLen" must be a multiple of the number of channels in the reader, a horrible error will be thrown if it is not.
+	 * The pcm samples are packed in increasing time and interleaved by channel i.e. [left0 right0 left1 right1 ... leftN rightN]
+	 */
+	void pack_buffer(dsf2flac_int32 *buffer, dsf2flac_uint32 bufferLen);
+
+private:
+
+
+	DsdSampleReader *reader;	//!< A pointer to the DsdSampleReader.
+};
+
+#endif /* DOPPACKER_H_ */

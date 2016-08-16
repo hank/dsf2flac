@@ -1,5 +1,5 @@
 package "dsf2flac"
-version "0.1Rev30"
+version "0.1Rev53"
 purpose "Convert DSD audio files from DFF or DSF format into PCM flac audio."
 #usage "<usage>"
 #args "<command line options>"
@@ -38,3 +38,8 @@ option "outfile" o "Output FLAC file, if not specified the output file be the sa
 string
 typestr="filepath"
 optional
+
+option "dop" d "Encode DSD data directly into FLAC file without conversion to PCM using DoP format (DSD over PCM)"
+flag
+off
+ 

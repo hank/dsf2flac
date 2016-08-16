@@ -148,6 +148,7 @@ int CCP_CalcInit(CodedTable *CT)
     default :
       fprintf(stderr, "ERROR: Illegal table type\n");
       retval = 1;
+      break;
   }
 
   return (retval);
