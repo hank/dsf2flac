@@ -221,7 +221,8 @@ int do_pcm_conversion(
 		bool dither,
 		dsf2flac_float64 userScale,
 		boost::filesystem::path inpath,
-		boost::filesystem::path outpath
+		boost::filesystem::path outpath,
+		bool onefile
 		)
 {
 
@@ -245,32 +246,43 @@ int do_pcm_conversion(
 
 	setupTimer(dsr->getPositionInSeconds());
 
-	// convert each track in the file in turn
-	for (dsf2flac_uint32 n = 0; n < dsr->getNumTracks();n++) {
+	if(onefile) {
+		// convert whole file
+		dsf2flac_float64 trackStart = dec.getFirstValidSample();
+		dsf2flac_float64 trackEnd = dec.getLastValidSample();
 
-		// get and check the start and end samples
-		dsf2flac_float64 trackStart = (dsf2flac_float64)dsr->getTrackStart(n) / dec.getDecimationRatio();
-		dsf2flac_float64 trackEnd = (dsf2flac_float64)dsr->getTrackEnd(n) / dec.getDecimationRatio();
-		if (trackStart < dec.getFirstValidSample())
-			trackStart = dec.getFirstValidSample();
-		if (trackStart >= dec.getLastValidSample() )
-			trackStart = dec.getLastValidSample() - 1;
-		if (trackEnd <= dec.getFirstValidSample())
-			trackEnd = dec.getFirstValidSample() + 1;
-		if (trackEnd > dec.getLastValidSample())
-			trackEnd = dec.getLastValidSample();
-
-		// construct an appropriate filename for multi track files.
-		boost::filesystem::path trackOutPath;
-		if (dsr->getNumTracks() > 1) {
-			trackOutPath = muti_track_name_helper(outpath,n);
-		} else {
-			trackOutPath = outpath;
-		}
-
-		printf("Output file\n\t%s\n",trackOutPath.c_str());
+		printf("Output file\n\t%s\n",outpath.c_str());
 		// use the pcm_track_helper
-		ok &= pcm_track_helper(trackOutPath,&dec,bits,scale,tpdfDitherPeakAmplitude,clipAmplitude,trackStart,trackEnd,dsr->getID3Tag(n));
+		ok &= pcm_track_helper(outpath,&dec,bits,scale,tpdfDitherPeakAmplitude,clipAmplitude,trackStart,trackEnd,NULL);
+	} else {
+		// convert each track in the file in turn
+		for (dsf2flac_uint32 n = 0; n < dsr->getNumTracks();n++) {
+
+			// get and check the start and end samples
+			dsf2flac_float64 trackStart = (dsf2flac_float64)dsr->getTrackStart(n) / dec.getDecimationRatio();
+			dsf2flac_float64 trackEnd = (dsf2flac_float64)dsr->getTrackEnd(n) / dec.getDecimationRatio();
+			if (trackStart < dec.getFirstValidSample())
+				trackStart = dec.getFirstValidSample();
+			if (trackStart >= dec.getLastValidSample() )
+				trackStart = dec.getLastValidSample() - 1;
+			if (trackEnd <= dec.getFirstValidSample())
+				trackEnd = dec.getFirstValidSample() + 1;
+			if (trackEnd > dec.getLastValidSample())
+				trackEnd = dec.getLastValidSample();
+
+			// construct an appropriate filename for multi track files.
+			boost::filesystem::path trackOutPath;
+			if (dsr->getNumTracks() > 1) {
+				trackOutPath = muti_track_name_helper(outpath,n);
+			} else {
+				trackOutPath = outpath;
+			}
+
+			printf("Output file\n\t%s\n",trackOutPath.c_str());
+			// use the pcm_track_helper
+			ok &= pcm_track_helper(trackOutPath,&dec,bits,scale,tpdfDitherPeakAmplitude,clipAmplitude,trackStart,trackEnd,dsr->getID3Tag(n));
+
+		}
 	}
 
 	return ok;
@@ -448,6 +460,7 @@ int main(int argc, char **argv)
 	int fs = args_info.samplerate_arg;
 	int bits = args_info.bits_arg;
 	bool dither = !args_info.nodither_flag;
+	bool onefile = args_info.onefile_flag;
 	bool dop = args_info.dop_flag;
 	dsf2flac_float64 userScaleDB = (dsf2flac_float64) args_info.scale_arg;
 	dsf2flac_float64 userScale = pow(10.0,userScaleDB/20);
@@ -490,7 +503,7 @@ int main(int argc, char **argv)
 		printf("Output format\n\tSampleRate: %dHz\n\tDepth: %dbit\n\tDither: %s\n\tScale: %1.1fdB\n",fs, bits, (dither)?"true":"false",userScaleDB);
 		//printf("\tIdleSample: 0x%02x\n",dsr->getIdleSample());
 
-		return do_pcm_conversion(dsr,fs,bits,dither,userScale,inpath,outpath);
+		return do_pcm_conversion(dsr,fs,bits,dither,userScale,inpath,outpath,onefile);
 	} else {
 		// feedback some info to the user
 		printf("Input file\n\t%s\n",inpath.c_str());

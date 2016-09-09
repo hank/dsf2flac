@@ -1,5 +1,5 @@
 package "dsf2flac"
-version "0.1Rev53"
+version "0.1Rev54"
 purpose "Convert DSD audio files from DFF or DSF format into PCM flac audio."
 #usage "<usage>"
 #args "<command line options>"
@@ -19,6 +19,10 @@ default="24"
 optional
 
 option "nodither"	n	"Don't add dither before quantization"
+flag
+off
+
+option "onefile"	1	"Don't split into tracks"
 flag
 off
 
