@@ -472,7 +472,7 @@ int main(int argc, char **argv)
 	else if (inpath.extension() == ".dff" || inpath.extension() == ".DFF")
 		dsr = new DsdiffFileReader((char*)inpath.c_str());
 	else {
-		printf("Sorry, only .dff or .dff input files are supported\n");
+		printf("Sorry, only .dsf or .dff input files are supported\n");
 		return 0;
 	}
 
