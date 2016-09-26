@@ -108,7 +108,7 @@ boost::filesystem::path muti_track_name_helper(boost::filesystem::path outpath, 
  * converts a track at a time to PCM FLAC
  * 
  */
-int pcm_track_helper(
+bool pcm_track_helper(
 	boost::filesystem::path outpath,
 	DsdDecimator* dec,
 	int bits,
@@ -135,7 +135,7 @@ int pcm_track_helper(
 	// setup the encoder
 	if(!encoder) {
 		fprintf(stderr, "ERROR: allocating encoder\n");
-		return 0;
+		return false;
 	}
 	ok &= encoder.set_verify(true);
 	ok &= encoder.set_compression_level(5);
@@ -214,7 +214,7 @@ int pcm_track_helper(
  *
  * this function uses a dsdDecimator to do the conversion into PCM.
  */
-int do_pcm_conversion(
+bool do_pcm_conversion(
 		DsdSampleReader* dsr,
 		int fs,
 		int bits,
@@ -231,7 +231,7 @@ int do_pcm_conversion(
 	DsdDecimator dec(dsr,fs);
 	if (!dec.isValid()) {
 		printf("%s\n",dec.getErrorMsg().c_str());
-		return 0;
+		return false;
 	}
 
 	// calc real scale and dither amplitude
@@ -279,7 +279,7 @@ int do_pcm_conversion(
 /**
  *	dop_track_helper
  */
-int dop_track_helper(
+bool dop_track_helper(
 	boost::filesystem::path outpath,
 	DsdSampleReader* dsr,
 	dsf2flac_int64 startPos,
@@ -305,7 +305,7 @@ int dop_track_helper(
 	// setup the encoder
 	if(!encoder) {
 		fprintf(stderr, "ERROR: allocating encoder\n");
-		return 0;
+		return false;
 	}
 	ok &= encoder.set_verify(true);
 	ok &= encoder.set_compression_level(5);
@@ -318,7 +318,7 @@ int dop_track_helper(
 		ok &= encoder.set_sample_rate(352800);
 	} else {
 		fprintf(stderr, "ERROR: sample rate not supported by DoP\n");
-		return 0;
+		return false;
 	}
 	ok &= encoder.set_total_samples_estimate((endPos - startPos)/16);
 
@@ -385,9 +385,6 @@ int dop_track_helper(
 	FLAC__metadata_object_delete(metadata[1]);
 
 	return ok;
-
-
-	return ok;
 }
 /**
  * int do_dop_conversion
@@ -395,7 +392,7 @@ int dop_track_helper(
  * this function handles conversion into DoP encoded flac
  *
  */
-int do_dop_conversion(
+bool do_dop_conversion(
 		DsdSampleReader* dsr,
 		boost::filesystem::path inpath,
 		boost::filesystem::path outpath
@@ -484,18 +481,20 @@ int main(int argc, char **argv)
 	}
 	
 	// do the conversion into PCM or DoP
+	bool ok = false;
 	if (!dop) {
 		// feedback some info to the user
 		printf("Input file\n\t%s\n",inpath.c_str());
 		printf("Output format\n\tSampleRate: %dHz\n\tDepth: %dbit\n\tDither: %s\n\tScale: %1.1fdB\n",fs, bits, (dither)?"true":"false",userScaleDB);
 		//printf("\tIdleSample: 0x%02x\n",dsr->getIdleSample());
 
-		return do_pcm_conversion(dsr,fs,bits,dither,userScale,inpath,outpath);
+		ok = do_pcm_conversion(dsr,fs,bits,dither,userScale,inpath,outpath);
 	} else {
 		// feedback some info to the user
 		printf("Input file\n\t%s\n",inpath.c_str());
 		printf("Output format\n\tDSD samples packed as DoP\n");
 
-		return do_dop_conversion(dsr,inpath,outpath);
+		ok = do_dop_conversion(dsr,inpath,outpath);
 	}
+	return ok? 0 : 1;
 }
