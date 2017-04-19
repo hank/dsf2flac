@@ -79,10 +79,10 @@ void checkTimer(dsf2flac_float64 currPos, dsf2flac_float64 percent)
 	cpu_times const elapsed_times(timer.elapsed());
 	nanosecond_type const elapsed(elapsed_times.system + elapsed_times.user);
 	if (elapsed >= reportInterval) {
-		printf("\33[2K\r");
-		printf("Rate: %4.1fx\t",(currPos-lastPos)/elapsed*1000000000);
-		printf("Progress: %3.0f%%",percent);
-		fflush(stdout);
+		fprintf(stderr,"\33[2K\r");
+		fprintf(stderr,"Rate: %4.1fx\t",(currPos-lastPos)/elapsed*1000000000);
+		fprintf(stderr,"Progress: %3.0f%%",percent);
+		fflush(stderr);
 		lastPos = currPos;
 		timer = cpu_timer();
 	}
@@ -193,12 +193,12 @@ bool pcm_track_helper(
 	// close the flac file
 	ok &= encoder.finish();
 	// report back to the user
-	printf("\33[2K\r");
-	printf("%3.1f%%\t",dec->getPositionAsPercent());
+	fprintf(stderr,"\33[2K\r");
+	fprintf(stderr,"%3.1f%%\t",dec->getPositionAsPercent());
 	if (ok) {
-		printf("Conversion completed sucessfully.\n");
+		fprintf(stderr,"Conversion completed sucessfully.\n");
 	} else {
-		printf("\nError during conversion.\n");
+		fprintf(stderr,"\nError during conversion.\n");
 		fprintf(stderr, "encoding: %s\n", ok? "succeeded" : "FAILED");
 		fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
 	}
@@ -230,7 +230,7 @@ bool do_pcm_conversion(
 	// create decimator
 	DsdDecimator dec(dsr,fs);
 	if (!dec.isValid()) {
-		printf("%s\n",dec.getErrorMsg().c_str());
+		fprintf(stderr,"%s\n",dec.getErrorMsg().c_str());
 		return false;
 	}
 
@@ -268,7 +268,7 @@ bool do_pcm_conversion(
 			trackOutPath = outpath;
 		}
 
-		printf("Output file\n\t%s\n",trackOutPath.c_str());
+		fprintf(stderr,"Output file\n\t%s\n",trackOutPath.c_str());
 		// use the pcm_track_helper
 		ok &= pcm_track_helper(trackOutPath,&dec,bits,scale,tpdfDitherPeakAmplitude,clipAmplitude,trackStart,trackEnd,dsr->getID3Tag(n));
 	}
@@ -332,7 +332,10 @@ bool dop_track_helper(
 
 	// initialize encoder
 	if(ok) {
-		init_status = encoder.init(outpath.c_str());
+		if (!strcmp(outpath.c_str(),"-"))
+			init_status = encoder.init((FILE *)stdout); 
+		else // outpath.c_str());
+			init_status = encoder.init(outpath.c_str());
 		if(init_status != FLAC__STREAM_ENCODER_INIT_STATUS_OK) {
 			fprintf(stderr, "ERROR: initializing encoder: %s\n", FLAC__StreamEncoderInitStatusString[init_status]);
 			ok = false;
@@ -371,12 +374,12 @@ bool dop_track_helper(
 	// close the flac file
 	ok &= encoder.finish();
 	// report back to the user
-	printf("\33[2K\r");
-	printf("%3.1f%%\t",dsr->getPositionAsPercent());
+	fprintf(stderr,"\33[2K\r");
+	fprintf(stderr,"%3.1f%%\t",dsr->getPositionAsPercent());
 	if (ok) {
-		printf("Conversion completed sucessfully.\n");
+		fprintf(stderr,"Conversion completed sucessfully.\n");
 	} else {
-		printf("\nError during conversion.\n");
+		fprintf(stderr,"\nError during conversion.\n");
 		fprintf(stderr, "encoding: %s\n", ok? "succeeded" : "FAILED");
 		fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
 	}
@@ -417,7 +420,7 @@ bool do_dop_conversion(
 			trackOutPath = outpath;
 		}
 
-		printf("Output file\n\t%s\n",trackOutPath.c_str());
+		fprintf(stderr,"Output file\n\t%s\n",trackOutPath.c_str());
 		// use the pcm_track_helper
 		ok &= dop_track_helper(trackOutPath,dsr,trackStart,trackEnd,dsr->getID3Tag(n));
 	}
@@ -457,8 +460,8 @@ int main(int argc, char **argv)
 		outpath.replace_extension(".flac");
 	}
 
-	printf("%s ",CMDLINE_PARSER_PACKAGE_NAME);
-	printf("%s\n\n",CMDLINE_PARSER_VERSION);
+	fprintf(stderr,"%s ",CMDLINE_PARSER_PACKAGE_NAME);
+	fprintf(stderr,"%s\n\n",CMDLINE_PARSER_VERSION);
 
 	// pointer to the dsdSampleReader (could be any valid type).
 	DsdSampleReader* dsr;
@@ -469,14 +472,14 @@ int main(int argc, char **argv)
 	else if (inpath.extension() == ".dff" || inpath.extension() == ".DFF")
 		dsr = new DsdiffFileReader((char*)inpath.c_str());
 	else {
-		printf("Sorry, only .dff or .dff input files are supported\n");
+		fprintf(stderr,"Sorry, only .dsf or .dff input files are supported\n");
 		return 0;
 	}
 
 	// check reader is valid.
 	if (!dsr->isValid()) {
-		printf("Error opening DSDFF file!\n");
-		printf("%s\n",dsr->getErrorMsg().c_str());
+		fprintf(stderr,"Error opening DSDFF file!\n");
+		fprintf(stderr,"%s\n",dsr->getErrorMsg().c_str());
 		return 0;
 	}
 	
@@ -484,15 +487,15 @@ int main(int argc, char **argv)
 	bool ok = false;
 	if (!dop) {
 		// feedback some info to the user
-		printf("Input file\n\t%s\n",inpath.c_str());
-		printf("Output format\n\tSampleRate: %dHz\n\tDepth: %dbit\n\tDither: %s\n\tScale: %1.1fdB\n",fs, bits, (dither)?"true":"false",userScaleDB);
+		fprintf(stderr,"Input file\n\t%s\n",inpath.c_str());
+		fprintf(stderr,"Output format\n\tSampleRate: %dHz\n\tDepth: %dbit\n\tDither: %s\n\tScale: %1.1fdB\n",fs, bits, (dither)?"true":"false",userScaleDB);
 		//printf("\tIdleSample: 0x%02x\n",dsr->getIdleSample());
 
 		ok = do_pcm_conversion(dsr,fs,bits,dither,userScale,inpath,outpath);
 	} else {
 		// feedback some info to the user
-		printf("Input file\n\t%s\n",inpath.c_str());
-		printf("Output format\n\tDSD samples packed as DoP\n");
+		fprintf(stderr,"Input file\n\t%s\n",inpath.c_str());
+		fprintf(stderr,"Output format\n\tDSD samples packed as DoP\n");
 
 		ok = do_dop_conversion(dsr,inpath,outpath);
 	}
