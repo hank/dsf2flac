@@ -328,7 +328,7 @@ bool DsdiffFileReader::readChunk_FRM8(dsf2flac_uint64 chunkStart)
 		} else if ( checkIdent(ident,const_cast<dsf2flac_int8*>("DSTI")) ) {
 			readChunk_DSTI(subChunkStart);
 		} else
-			printf("WARNING: unknown chunk type: %s\n",ident);
+			fprintf(stderr,"WARNING: unknown chunk type: %s\n",ident);
 		// move to the next chunk
 		subChunkStart = subChunkStart + subChunkSz;
 	}
@@ -414,7 +414,7 @@ bool DsdiffFileReader::readChunk_PROP(dsf2flac_uint64 chunkStart)
 		} else if ( !found_lsco && checkIdent(ident,const_cast<dsf2flac_int8*>("LSCO")) ) {
 			found_lsco = readChunk_LSCO(subChunkStart);
 		} else
-			printf("WARNING: unknown or repeated chunk type: %s\n",ident);
+			fprintf(stderr,"WARNING: unknown or repeated chunk type: %s\n",ident);
 		// move to the next chunk
 		subChunkStart = subChunkStart + subChunkSz;
 	}
@@ -634,7 +634,7 @@ bool DsdiffFileReader::readChunk_DIIN(dsf2flac_uint64 chunkStart)
 		} else if ( checkIdent(ident,const_cast<dsf2flac_int8*>("MARK")) ) {
 			readChunk_MARK(subChunkStart);
 		} else
-			printf("WARNING: unknown chunk type: %s\n",ident);
+			fprintf(stderr,"WARNING: unknown chunk type: %s\n",ident);
 		// move to the next chunk
 		subChunkStart = subChunkStart + subChunkSz;
 	}
@@ -973,7 +973,7 @@ bool DsdiffFileReader::readChunk_DST(dsf2flac_uint64 chunkStart)
 			found_dstf = true;
 			sampleDataPointer = subChunkStart;
 		} else
-			printf("WARNING: unknown chunk type: %s\n",ident);
+			fprintf(stderr,"WARNING: unknown chunk type: %s\n",ident);
 		// move to the next chunk
 		subChunkStart = subChunkStart + subChunkSz;
 	}
