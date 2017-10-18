@@ -31,7 +31,7 @@ extern "C" {
 
 #ifndef CMDLINE_PARSER_VERSION
 /** @brief the program version */
-#define CMDLINE_PARSER_VERSION "0.1Rev53"
+#define CMDLINE_PARSER_VERSION "0.1Rev54"
 #endif
 
 /** @brief Where the command line options are stored */
@@ -47,6 +47,8 @@ struct gengetopt_args_info
   const char *bits_help; /**< @brief Output bitdepth help description.  */
   int nodither_flag;	/**< @brief Don't add dither before quantization (default=off).  */
   const char *nodither_help; /**< @brief Don't add dither before quantization help description.  */
+  int onefile_flag;	/**< @brief Don't split into tracks (default=off).  */
+  const char *onefile_help; /**< @brief Don't split into tracks help description.  */
   float scale_arg;	/**< @brief Scale adjustment. Raw DSD has a modulation depth of approximately 0.5 so with no scaling the PCM peak level is approximately -6dB below 0dBFs (default='4').  */
   char * scale_orig;	/**< @brief Scale adjustment. Raw DSD has a modulation depth of approximately 0.5 so with no scaling the PCM peak level is approximately -6dB below 0dBFs original value given at command line.  */
   const char *scale_help; /**< @brief Scale adjustment. Raw DSD has a modulation depth of approximately 0.5 so with no scaling the PCM peak level is approximately -6dB below 0dBFs help description.  */
@@ -64,6 +66,7 @@ struct gengetopt_args_info
   unsigned int samplerate_given ;	/**< @brief Whether samplerate was given.  */
   unsigned int bits_given ;	/**< @brief Whether bits was given.  */
   unsigned int nodither_given ;	/**< @brief Whether nodither was given.  */
+  unsigned int onefile_given ;	/**< @brief Whether onefile was given.  */
   unsigned int scale_given ;	/**< @brief Whether scale was given.  */
   unsigned int infile_given ;	/**< @brief Whether infile was given.  */
   unsigned int outfile_given ;	/**< @brief Whether outfile was given.  */
