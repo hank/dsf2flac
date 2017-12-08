@@ -23,6 +23,7 @@ PLUGIN_DESCRIPTION = "Tagging support for the DSF DSD Audio file format"
 PLUGIN_VERSION = "0.1"
 PLUGIN_API_VERSIONS = ["0.15"]
 
+from picard import config
 from picard.metadata import Metadata
 from picard.file import File
 from picard.formats import register_format
@@ -30,6 +31,7 @@ from picard.plugins.dsf.compatid3_dsf import CompatID3
 from picard.plugins.dsf.dsf import DSF
 from picard.plugins.dsf import id3_dsf as id3
 from picard.util import encode_filename, sanitize_date
+from picard.coverart.image import TagCoverArtImage, CoverArtImageError
 from urlparse import urlparse
 
 
@@ -205,7 +207,8 @@ class ID3File_DSF(File):
                 else:
                     metadata['discnumber'] = value[0]
             elif frameid == 'APIC':
-                metadata.add_image(frame.mime, frame.data)
+                coverartimage = TagCoverArtImage(file=filename, tag=frameid, data=frame.data)
+                metadata.append_image(coverartimage)
             elif frameid == 'POPM':
                 # Rating in ID3 ranges from 0 to 255, normalize this to the range 0 to 5
                 if frame.email == self.config.setting['rating_user_email']:
@@ -218,7 +221,7 @@ class ID3File_DSF(File):
         self._info(metadata, file)
         return metadata
 
-    def _save(self, filename, metadata, settings):
+    def _save(self, filename, metadata):
         """Save metadata to the file."""
         self.log.debug("Saving file %r", filename)
         try:
@@ -226,16 +229,16 @@ class ID3File_DSF(File):
         except id3.ID3NoHeaderError:
             tags = compatid3_dsf.CompatID3()
 
-        if settings['clear_existing_tags']:
+        if config.setting['clear_existing_tags']:
             tags.clear()
-        if settings['save_images_to_tags'] and metadata.images:
+        if config.setting['save_images_to_tags'] and metadata.images_to_be_saved_to_tags:
             tags.delall('APIC')
 
-        if settings['write_id3v1']:
+        if config.setting['write_id3v1']:
             v1 = 2
         else:
             v1 = 0
-        encoding = {'utf-8': 3, 'utf-16': 1}.get(settings['id3v2_encoding'], 0)
+        encoding = {'utf-8': 3, 'utf-16': 1}.get(config.setting['id3v2_encoding'], 0)
 
         if 'tracknumber' in metadata:
             if 'totaltracks' in metadata:
@@ -251,9 +254,10 @@ class ID3File_DSF(File):
                 text = metadata['discnumber']
             tags.add(id3.TPOS(encoding=0, text=text))
 
-        if settings['save_images_to_tags']:
-            for mime, data, _fname in metadata.images:
-                tags.add(id3.APIC(encoding=0, mime=mime, type=3, desc='', data=data))
+        if config.setting['save_images_to_tags']:
+            if metadata.images_to_be_saved_to_tags:
+                for image in metadata.images_to_be_saved_to_tags:
+                    tags.add(id3.APIC(encoding=0, mime=image.mimetype, type=3, desc=image.comment, data=image.data))
 
         tmcl = id3.TMCL(encoding=encoding, people=[])
         tipl = id3.TIPL(encoding=encoding, people=[])
@@ -286,15 +290,15 @@ class ID3File_DSF(File):
             elif name == '~rating':
                 # Search for an existing POPM frame to get the current playcount
                 for frame in tags.values():
-                    if frame.FrameID == 'POPM' and frame.email == settings['rating_user_email']:
+                    if frame.FrameID == 'POPM' and frame.email == config.setting['rating_user_email']:
                         count = getattr(frame, 'count', 0)
                         break
                 else:
                     count = 0
 
                 # Convert rating to range between 0 and 255
-                rating = int(round(float(values[0]) * 255 / (settings['rating_steps'] - 1)))
-                tags.add(id3.POPM(email=settings['rating_user_email'], rating=rating, count=count))
+                rating = int(round(float(values[0]) * 255 / (config.setting['rating_steps'] - 1)))
+                tags.add(id3.POPM(email=config.setting['rating_user_email'], rating=rating, count=count))
             elif name in self.__rtranslate:
                 frameid = self.__rtranslate[name]
                 if frameid.startswith('W'):
@@ -335,7 +339,7 @@ class ID3File_DSF(File):
         if tipl.people:
             tags.add(tipl)
 
-        if settings['write_id3v23']:
+        if config.setting['write_id3v23']:
             tags.update_to_v23()
             tags.save(encode_filename(filename), v2=3, v1=v1)
         else:
