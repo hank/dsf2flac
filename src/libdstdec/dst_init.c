@@ -38,7 +38,7 @@ assign or donate the code to a third party and to inhibit third party from
 using the code for non MPEG-4 Audio conforming products. This copyright notice
 must be included in all copies of derivative works.
 
-Copyright © 2004.
+Copyright ï¿½ 2004.
 
 Source file: DST_init.c (DST Coder Initialisation)
 
@@ -76,21 +76,32 @@ Changes:
 /*       STATIC FUNCTION IMPLEMENTATIONS                                      */
 /*============================================================================*/
 
-/* General function for allocating memory for array of any type */
+/* General function for allocating memory for array of any type. Also, checks */
+/* for ARM architecture and uses the malloc method, otherwise uses _mm_malloc*/
 static void *MemoryAllocate(int NrOfElements, int SizeOfElement) 
 {
   void *Array;
-
+  #ifdef __arm__      /* Check for ARM architecture */
+  if ((Array = malloc(NrOfElements * SizeOfElement)) == NULL) 
+  {
+    fprintf(stderr,"ERROR: not enough memory available!\n\n");
+  }
+  #else
   if ((Array = _mm_malloc(NrOfElements * SizeOfElement, 16)) == NULL) 
   {
     fprintf(stderr,"ERROR: not enough memory available!\n\n");
   }
+  #endif
   return Array;
 }
 
 static void MemoryFree(void *Array) 
 {
+  #ifdef __arm__      /* Check for ARM architecture */
+  free(Array);
+  #else 
   _mm_free(Array);
+  #endif
 }
 
 /* General function for allocating memory for array of any type */
