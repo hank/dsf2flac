@@ -46,13 +46,23 @@ ie > ./autogen.sh --with-boost-libdir=/usr/lib/arm-linux-gnueabihf
 EOF
 
 case "$arch" in
-	*arm*) cat text_file
-	read -p "Do you wish to continue anyways? Note that this may fail without this option. [y/n]  " yn
-	case $yn in
-		[Yy]* ) if [ "$1" != "--no-configure" ]; then
+	*intel*)
+		cat text_file
+		read -p "Do you wish to continue anyways? Note that this may fail without this option. [y/n]  " yn
+		case $yn in
+			[Yy]*)
+				if [ "$1" != "--no-configure" ]; then
 					./configure $@
+					echo "sucesses"
 				fi;;
-		[Nn]* ) exit;;
-			* ) echo "Please answer yes or no.";;
-	esac 
+			[Nn]*)
+				exit;;
+			*)
+				echo "Please answer yes or no.";;
+		esac;;
+	*)
+		if [ "$1" != "--no-configure" ]; then
+			./configure $@
+			echo "sucesses"
+		fi;;
 esac
