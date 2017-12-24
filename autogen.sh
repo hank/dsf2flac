@@ -46,7 +46,7 @@ ie > ./autogen.sh --with-boost-libdir=/usr/lib/arm-linux-gnueabihf
 EOF
 
 case "$arch" in
-	*intel*)
+	*amd*)
 		cat text_file
 		read -p "Do you wish to continue anyways? Note that this may fail without this option. [y/n]  " yn
 		case $yn in
