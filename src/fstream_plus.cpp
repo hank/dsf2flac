@@ -56,12 +56,12 @@ fstreamPlus::~fstreamPlus()
 }
 
 /** Overload seekg methods to return true on fail **/
-bool fstreamPlus::seekg(streampos pos)
+bool fstreamPlus::seekg(std::streampos pos)
 {
 	std::fstream::seekg(pos);
 	return !good();
 }
-bool fstreamPlus::seekg(streamoff pos, ios_base::seekdir way)
+bool fstreamPlus::seekg(std::streamoff pos, ios_base::seekdir way)
 {
 	std::fstream::seekg(pos,way);
 	return !good();

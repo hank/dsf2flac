@@ -60,8 +60,8 @@ public:
 	virtual ~fstreamPlus();
 	
 	/** Overload seekg methods to return true on fail **/
-	bool seekg(streampos pos);
-	bool seekg(streamoff pos, ios_base::seekdir way);
+	bool seekg(std::streampos pos);
+	bool seekg(std::streamoff pos, ios_base::seekdir way);
 	
 	/** Additional read methods - native bit order **/
 	// All return true on error. All read "n" numbers (not n chars/bytes!)
