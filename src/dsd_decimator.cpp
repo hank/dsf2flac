@@ -57,7 +57,7 @@ DsdDecimator::DsdDecimator(DsdSampleReader *r, dsf2flac_uint32 rate)
 	if (ratio == 8)
 		initLookupTable(nCoefs_352,coefs_352,tzero_352);
 	else if (ratio == 16)
-		initLookupTable(nCoefs_176,coefs_176,tzero_176);
+		initLookupTable(nCoefs_176_sa,coefs_176_sa,tzero_176_sa);
 	else if (ratio == 32)
 		initLookupTable(nCoefs_88,coefs_88,tzero_88);
 	else
