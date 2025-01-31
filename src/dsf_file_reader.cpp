@@ -350,18 +350,16 @@ bool DsfFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
 
 void DsfFileReader::dispFileInfo()
 {
-	printf("filesize: %lu\n",fileSz);
-	printf("metaChunkPointer: %lu\n",metaChunkPointer);
-	printf("sampleDataPointer: %lu\n",sampleDataPointer);
-	printf("dataChunkSz: %lu\n",dataChunkSz);
-	printf("formatVer: %u\n",formatVer);
-	printf("formatID: %u\n",formatID);
-	printf("chanType: %u\n",chanType);
-	printf("chanNum: %u\n",chanNum);
-	printf("samplingFreq: %u\n",samplingFreq);
-	printf("samplesPerChar: %u\n",samplesPerChar);
-	printf("sampleCount: %lu\n",sampleCount);
-	printf("blockSzPerChan: %u\n",blockSzPerChan);
-
-	return;
+	printf("filesize: %" PRIu64 "\n",fileSz);
+	printf("metaChunkPointer: %" PRIu64 "\n",metaChunkPointer);
+	printf("sampleDataPointer: %" PRIu64 "\n",sampleDataPointer);
+	printf("dataChunkSz: %" PRIu64 "\n",dataChunkSz);
+	printf("formatVer: %" PRIu32 "\n",formatVer);
+	printf("formatID: %" PRIu32 "\n",formatID);
+	printf("chanType: %" PRIu32 "\n",chanType);
+	printf("chanNum: %" PRIu32 "\n",chanNum);
+	printf("samplingFreq: %" PRIu32 "\n",samplingFreq);
+	printf("samplesPerChar: %" PRIu32 "\n",samplesPerChar);
+	printf("sampleCount: %" PRIu64 "\n",sampleCount);
+	printf("blockSzPerChan: %" PRIu32 "\n",blockSzPerChan);
 }

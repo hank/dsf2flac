@@ -40,7 +40,7 @@
 #include <FLAC++/metadata.h>
 #include <FLAC++/encoder.h>
 #include <sstream>
-#include <math.h>
+#include <cmath>
 #include "cmdline.h"
 #include "dsd_decimator.h"
 #include "dsf_file_reader.h"

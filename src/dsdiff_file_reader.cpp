@@ -37,13 +37,16 @@
 
 
 #include "dsdiff_file_reader.h"
-#include "iostream"
 #include "libdstdec/dst_init.h"
 #include "libdstdec/dst_fram.h"
+#include <iostream>
+#include <cinttypes>
+
 static bool chanIdentsAllocated = false;
 static bool sampleBufferAllocated = false;
 static ebunch dstEbunch;
 static bool dstEbunchAllocated = false;
+
 DsdiffFileReader::DsdiffFileReader(char* filePath) : DsdSampleReader()
 {
 	// set some defaults
@@ -810,10 +813,10 @@ void DsdiffFileReader::processTracks() {
 
 void DsdiffFileReader::dispMarker(DsdiffMarker m)
 {
-	printf("\nmarkType:\t%u\n",m.markType);
-	printf("time:\t%u:%u:%u::%u + %u\n",m.hours,m.minutes,m.seconds,m.samples,m.offset);
-	printf("markChannel:\t\t%u\n",m.markChannel);
-	printf("trackFlags:\t\t%u\n",m.trackFlags);
+	printf("\nmarkType:\t%" PRIu16 "\n",m.markType);
+	printf("time:\t%" PRIu16 ":%" PRIu8 ":%" PRIu8 "::%" PRIu32 " + %" PRIi32 "\n",m.hours,m.minutes,m.seconds,m.samples,m.offset);
+	printf("markChannel:\t\t%" PRIu16 "\n",m.markChannel);
+	printf("trackFlags:\t\t%" PRIu16 "\n",m.trackFlags);
 	printf("markerText:\t%s\n",m.markerText);
 	//printf("count:\t\t%u\n",m.count);
 }
@@ -884,14 +887,14 @@ bool DsdiffFileReader::readChunk_COMT(dsf2flac_uint64 chunkStart)
 
 void DsdiffFileReader::dispComment(DsdiffComment c)
 {
-	printf("timeStampYear:\t%u\n",c.timeStampYear);
-	printf("timeStampMonth:\t%u\n",c.timeStampMonth);
-	printf("timeStampDay:\t%u\n",c.timeStampDay);
-	printf("timeStampHour:\t%u\n",c.timeStampHour);
-	printf("timeStampMinutes:\t%u\n",c.timeStampMinutes);
-	printf("cmtType:\t%u\n",c.cmtType);
-	printf("cmtRef:\t\t%u\n",c.cmtRef);
-	printf("count:\t\t%u\n",c.count);
+	printf("timeStampYear:\t%" PRIu16 "\n",c.timeStampYear);
+	printf("timeStampMonth:\t%" PRIu8 "\n",c.timeStampMonth);
+	printf("timeStampDay:\t%" PRIu8 "\n",c.timeStampDay);
+	printf("timeStampHour:\t%" PRIu8 "\n",c.timeStampHour);
+	printf("timeStampMinutes:\t%" PRIu8 "\n",c.timeStampMinutes);
+	printf("cmtType:\t%" PRIu16 "\n",c.cmtType);
+	printf("cmtRef:\t\t%" PRIu16 "\n",c.cmtRef);
+	printf("count:\t\t%" PRIu32 "\n",c.count);
 	printf("commentText:\t%s\n",c.commentText);
 }
 
@@ -1051,16 +1054,16 @@ bool DsdiffFileReader::checkIdent(dsf2flac_int8* a, dsf2flac_int8* b)
 void DsdiffFileReader::dispFileInfo()
 {
 	printf("dsdiffVersion: %08x\n",dsdiffVersion);
-	printf("samplingRate: %u\n",samplingFreq);
-	printf("chanNum: %u\n",chanNum);
+	printf("samplingRate: %" PRIu32 "\n",samplingFreq);
+	printf("chanNum: %" PRIu16 "\n",chanNum);
 	for (int i=0; i<chanNum; i++)
-		printf("chanIdent%u: %s\n",i,chanIdents[i]);
+		printf("chanIdent%d: %s\n",i,chanIdents[i]);
 	printf("compressionType: %s\n",compressionType);
 	printf("compressionName: %s\n",compressionName);
-	printf("ast_hours: %u\n",ast.hours);
-	printf("ast_mins: %d\n",ast.minutes);
-	printf("ast_secs: %d\n",ast.seconds);
-	printf("ast_samples: %u\n",ast.samples);
-	printf("sampleDataPointer: %lu\n",sampleDataPointer);
-	printf("sampleCount: %lu\n",sampleCountPerChan);
+	printf("ast_hours: %" PRIu16 "\n",ast.hours);
+	printf("ast_mins: %" PRIu8 "\n",ast.minutes);
+	printf("ast_secs: %" PRIu8 "\n",ast.seconds);
+	printf("ast_samples: %" PRIu32 "\n",ast.samples);
+	printf("sampleDataPointer: %" PRIu64 "\n",sampleDataPointer);
+	printf("sampleCount: %" PRIu64 "\n",sampleCountPerChan);
 }
