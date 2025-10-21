@@ -8,7 +8,7 @@
 #
 # DESCRIPTION
 #
-#   Test for Timer library from the Boost C++ libraries. The macro requires
+#   Test for System library from the Boost C++ libraries. The macro requires
 #   a preceding call to AX_BOOST_BASE. Further documentation is available at
 #   <http://randspringer.de/boost/index.html>.
 #
@@ -23,13 +23,14 @@
 # LICENSE
 #
 #   Copyright (c) 2012 Xiyue Deng <manphiz@gmail.com>
+#   Copyright (c) 2012 Murray Cumming <murrayc@openismus.com>
 #
 #   Copying and distribution of this file, with or without modification, are
 #   permitted in any medium without royalty provided the copyright notice
 #   and this notice are preserved. This file is offered as-is, without any
 #   warranty.
 
-#serial 1
+#serial 2 (based on serial 1 of ax_boost_locale.m4 with some simple find/replace by Murray Cumming)
 
 AC_DEFUN([AX_BOOST_TIMER],
 [
@@ -67,8 +68,8 @@ AC_DEFUN([AX_BOOST_TIMER],
         [AC_LANG_PUSH([C++])
 			 CXXFLAGS_SAVE=$CXXFLAGS
 
-			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <boost/timer.hpp>]],
-                                   [[boost::timer timer;]])],
+			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <boost/timer/timer.hpp>]],
+                                   [[boost::timer::cpu_timer().stop();]])],
                    ax_cv_boost_timer=yes, ax_cv_boost_timer=no)
 			 CXXFLAGS=$CXXFLAGS_SAVE
              AC_LANG_POP([C++])

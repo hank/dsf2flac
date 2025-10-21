@@ -30,8 +30,16 @@ PKG_CONFIG_CHECK_MODULE([flac++],[1.3])
 #	[AC_MSG_ERROR([libflac required, but it was not found in your system])]])
 #AM_PATH_LIBFLACPP([],
 #	[AC_MSG_ERROR([libflac++ required, but it was not found in your system])]])
+
 AX_BOOST_BASE([1.48],,
 	[AC_MSG_ERROR([Boost required, but it was not found in your system])])
+
+# Print Boost information
+AC_MSG_NOTICE([Boost version: $BOOST_VERSION])
+AC_MSG_NOTICE([Boost CPPFLAGS: $BOOST_CPPFLAGS])
+AC_MSG_NOTICE([Boost LDFLAGS: $BOOST_LDFLAGS])
+AC_MSG_NOTICE([Boost root: $BOOST_ROOT])
+
 AX_BOOST_FILESYSTEM
 AX_BOOST_SYSTEM
 AX_BOOST_TIMER
