@@ -81,7 +81,7 @@ Changes:
 static void *MemoryAllocate(int NrOfElements, int SizeOfElement) 
 {
   void *Array;
-  #ifdef __arm__      /* Check for ARM architecture */
+  #if (defined(__arm__) || defined(__aarch64__))      /* Check for ARM architecture */
   if ((Array = malloc(NrOfElements * SizeOfElement)) == NULL) 
   {
     fprintf(stderr,"ERROR: not enough memory available!\n\n");
@@ -97,7 +97,7 @@ static void *MemoryAllocate(int NrOfElements, int SizeOfElement)
 
 static void MemoryFree(void *Array) 
 {
-  #ifdef __arm__      /* Check for ARM architecture */
+  #if (defined(__arm__) || defined(__aarch64__))      /* Check for ARM architecture */
   free(Array);
   #else 
   _mm_free(Array);
