@@ -408,14 +408,24 @@ bool dop_track_helper(
  *
  */
 bool do_dop_conversion(
-		DsdSampleReader* dsr,
-		boost::filesystem::path inpath,
-		boost::filesystem::path outpath
-		)
+    DsdSampleReader* dsr,
+    boost::filesystem::path inpath,
+    boost::filesystem::path outpath,
+    bool onefile
+)
 {
 	bool ok = true;
 
 	setupTimer(dsr->getPositionInSeconds());
+	
+	if (onefile) {
+    	dsf2flac_uint64 trackStart = 0;
+    	dsf2flac_uint64 trackEnd = dsr->getLength();
+
+    	fprintf(stderr, "Output file\n\t%s\n", outpath.c_str());
+
+    	return dop_track_helper(outpath, dsr, trackStart, trackEnd, dsr->getID3Tag(0));
+	}
 
 	// convert each track in the file in turn
 	for (dsf2flac_uint32 n = 0; n < dsr->getNumTracks();n++) {
@@ -510,7 +520,8 @@ int main(int argc, char **argv)
 		fprintf(stderr,"Input file\n\t%s\n",inpath.c_str());
 		fprintf(stderr,"Output format\n\tDSD samples packed as DoP\n");
 
-		ok = do_dop_conversion(dsr,inpath,outpath);
+		// ok = do_dop_conversion(dsr,inpath,outpath);
+		ok = do_dop_conversion(dsr,inpath,outpath,onefile);
 	}
 	return ok? 0 : 1;
 }
