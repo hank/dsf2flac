@@ -631,6 +631,7 @@ bool DsdiffFileReader::readChunk_DIIN(dsf2flac_uint64 chunkStart)
 		// read the header
 		if (!readChunkHeader(ident,subChunkStart,&subChunkSz))
 			return false;
+		// see if we know how to read this chunk
 		if ( !emidRead && checkIdent(ident,const_cast<dsf2flac_int8*>("EMID")) ) {
 			emidRead = readChunk_EMID(subChunkStart);
 		} else if ( checkIdent(ident,const_cast<dsf2flac_int8*>("DIAR")) ) {
