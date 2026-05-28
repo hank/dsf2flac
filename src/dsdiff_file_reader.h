@@ -176,6 +176,10 @@ private: // private methods
 	bool readChunk_DIAR(dsf2flac_uint64 chunkStart);
 	/// read data from a DITI chunk
 	bool readChunk_DITI(dsf2flac_uint64 chunkStart);
+	/// read a DIIN text chunk payload
+	char* readDIINText(dsf2flac_uint64 chunkSz);
+	/// create a synthetic ID3 tag from DIIN metadata
+	ID3_Tag makeDIINID3Tag();
 	/// read data from a MARK chunk
 	bool readChunk_MARK(dsf2flac_uint64 chunkStart);
 	/// read data from a DSTI chunk
@@ -206,8 +210,9 @@ private:
 	std::vector<DsdiffComment> comments;
 	std::vector<ID3_Tag> tags;
 	std::vector<DsdiffMarker> markers;
-	bool isEm;
 	char* emid;
+	char* diar;
+	char* diti;
 	std::vector<DSTFrameIndex> dstFrameIndices;
 	DSTFrameInformation dstInfo;
 	// track info

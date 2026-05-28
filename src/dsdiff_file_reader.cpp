@@ -41,6 +41,7 @@
 #include "libdstdec/dst_fram.h"
 #include <iostream>
 #include <cinttypes>
+#include <cstring>
 
 static bool chanIdentsAllocated = false;
 static bool sampleBufferAllocated = false;
@@ -59,7 +60,9 @@ DsdiffFileReader::DsdiffFileReader(char* filePath) : DsdSampleReader()
 	bufferMarker = 0;
 	errorMsg = "";
 	lsConfig=65535;
-	isEm=false;
+	emid=NULL;
+	diar=NULL;
+	diti=NULL;
 	// first let's open the file
 	file.open(filePath, fstreamPlus::in | fstreamPlus::binary);
 	// throw exception if that did not work.
@@ -114,8 +117,14 @@ DsdiffFileReader::~DsdiffFileReader()
 	}
 	markers.clear();
 	// free emid
-	if (isEm)
+	if (emid)
 		delete[] emid;
+	// free diar
+	if (diar)
+		delete[] diar;
+	// free diti
+	if (diti)
+		delete[] diti;
 	
 	// free the DST decoder (assuming one was used)
 	if (dstEbunchAllocated) {
@@ -246,10 +255,34 @@ dsf2flac_uint64 DsdiffFileReader::getTrackEnd(dsf2flac_uint32 trackNum) {
 		
 }
 
- ID3_Tag DsdiffFileReader::getID3Tag(dsf2flac_uint32 trackNum) {
-	if (trackNum >= tags.size())
-		return NULL;
-	return tags[trackNum];
+ID3_Tag DsdiffFileReader::makeDIINID3Tag()
+{
+    ID3_Tag tag;
+
+    if (diar && strlen(diar) > 0) {
+        ID3_Frame* frame = new ID3_Frame(ID3FID_LEADARTIST);
+        frame->Field(ID3FN_TEXT).Set(diar);
+        tag.AddFrame(frame);
+    }
+
+    if (diti && strlen(diti) > 0) {
+        ID3_Frame* frame = new ID3_Frame(ID3FID_ALBUM);
+        frame->Field(ID3FN_TEXT).Set(diti);
+        tag.AddFrame(frame);
+    }
+
+    return tag;
+}
+
+ID3_Tag DsdiffFileReader::getID3Tag(dsf2flac_uint32 trackNum)
+{
+    if (trackNum < tags.size()) return tags[trackNum];
+
+    if ((diar && strlen(diar) > 0) || (diti && strlen(diti) > 0)) {
+        return makeDIINID3Tag();
+    }
+
+    return NULL;
 }
 
 bool DsdiffFileReader::readHeaders()
@@ -661,8 +694,14 @@ bool DsdiffFileReader::readChunk_DIAR(dsf2flac_uint64 chunkStart)
         return false;
     }
 
-    // DIAR is optional edited-master metadata. Ignore its contents.
-    return true;
+    if (diar) {
+        delete[] diar;
+        diar = NULL;
+    }
+
+    diar = readDIINText(chunkSz);
+
+    return diar != NULL;
 }
 
 bool DsdiffFileReader::readChunk_DITI(dsf2flac_uint64 chunkStart)
@@ -679,8 +718,51 @@ bool DsdiffFileReader::readChunk_DITI(dsf2flac_uint64 chunkStart)
         return false;
     }
 
-    // DITI is optional edited-master metadata. Ignore its contents.
-    return true;
+    if (diti) {
+        delete[] diti;
+        diti = NULL;
+    }
+
+    diti = readDIINText(chunkSz);
+
+    return diti != NULL;
+}
+
+char* DsdiffFileReader::readDIINText(dsf2flac_uint64 chunkSz)
+{
+    dsf2flac_uint32 count;
+
+    if (file.read_uint32_rev(&count,1)) {
+        errorMsg = "dsdiffFileReader::readDIINText:file read error";
+        return NULL;
+    }
+
+    // chunkSz includes the 12-byte DSDIFF chunk header.
+    // DIAR/DITI payload is:
+    //   uint32 count
+    //   char text[count]
+    if (chunkSz < 16) {
+        errorMsg = "dsdiffFileReader::readDIINText:invalid chunk size";
+        return NULL;
+    }
+
+    dsf2flac_uint64 maxCount = chunkSz - 12 - 4;
+
+    if (count > maxCount) {
+        errorMsg = "dsdiffFileReader::readDIINText:invalid text length";
+        return NULL;
+    }
+
+    char* text = new char[count + 1];
+    text[count] = '\0';
+
+    if (count > 0 && file.read_int8(text,count)) {
+        delete[] text;
+        errorMsg = "dsdiffFileReader::readDIINText:file read error";
+        return NULL;
+    }
+
+    return text;
 }
 
 bool DsdiffFileReader::readChunk_EMID(dsf2flac_uint64 chunkStart)
@@ -696,7 +778,6 @@ bool DsdiffFileReader::readChunk_EMID(dsf2flac_uint64 chunkStart)
 		errorMsg = "dsdiffFileReader::readChunk_EMID:chunk ident error";
 		return false;
 	}
-	isEm = true;
 	dsf2flac_uint64 n = chunkSz - 12;
 	emid = new char[n + 1];
 	emid[n] = '\0';
