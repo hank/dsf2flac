@@ -172,6 +172,10 @@ private: // private methods
 	bool readChunk_DIIN(dsf2flac_uint64 chunkStart);
 	/// read data from a EMID chunk
 	bool readChunk_EMID(dsf2flac_uint64 chunkStart);
+	/// read data from a DIAR chunk
+	bool readChunk_DIAR(dsf2flac_uint64 chunkStart);
+	/// read data from a DITI chunk
+	bool readChunk_DITI(dsf2flac_uint64 chunkStart);
 	/// read data from a MARK chunk
 	bool readChunk_MARK(dsf2flac_uint64 chunkStart);
 	/// read data from a DSTI chunk

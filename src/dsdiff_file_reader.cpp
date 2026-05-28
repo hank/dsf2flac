@@ -631,17 +631,55 @@ bool DsdiffFileReader::readChunk_DIIN(dsf2flac_uint64 chunkStart)
 		// read the header
 		if (!readChunkHeader(ident,subChunkStart,&subChunkSz))
 			return false;
-		// see if we know how to read this chunk
 		if ( !emidRead && checkIdent(ident,const_cast<dsf2flac_int8*>("EMID")) ) {
 			emidRead = readChunk_EMID(subChunkStart);
+		} else if ( checkIdent(ident,const_cast<dsf2flac_int8*>("DIAR")) ) {
+			readChunk_DIAR(subChunkStart);
+		} else if ( checkIdent(ident,const_cast<dsf2flac_int8*>("DITI")) ) {
+			readChunk_DITI(subChunkStart);
 		} else if ( checkIdent(ident,const_cast<dsf2flac_int8*>("MARK")) ) {
 			readChunk_MARK(subChunkStart);
-		} else
-			fprintf(stderr,"WARNING: unknown chunk type: %s\n",ident);
+		} else fprintf(stderr,"WARNING: unknown chunk type: %s\n",ident);
 		// move to the next chunk
 		subChunkStart = subChunkStart + subChunkSz;
 	}
 	return true;
+}
+
+bool DsdiffFileReader::readChunk_DIAR(dsf2flac_uint64 chunkStart)
+{
+    dsf2flac_int8 ident[5];
+    ident[4] = '\0';
+
+    dsf2flac_uint64 chunkSz;
+
+    if (!readChunkHeader(ident, chunkStart, &chunkSz)) return false;
+
+    if ( !checkIdent(ident, const_cast<dsf2flac_int8*>("DIAR")) ) {
+        errorMsg = "dsdiffFileReader::readChunk_DIAR:chunk ident error";
+        return false;
+    }
+
+    // DIAR is optional edited-master metadata. Ignore its contents.
+    return true;
+}
+
+bool DsdiffFileReader::readChunk_DITI(dsf2flac_uint64 chunkStart)
+{
+    dsf2flac_int8 ident[5];
+    ident[4] = '\0';
+
+    dsf2flac_uint64 chunkSz;
+
+    if (!readChunkHeader(ident, chunkStart, &chunkSz)) return false;
+
+    if ( !checkIdent(ident, const_cast<dsf2flac_int8*>("DITI")) ) {
+        errorMsg = "dsdiffFileReader::readChunk_DITI:chunk ident error";
+        return false;
+    }
+
+    // DITI is optional edited-master metadata. Ignore its contents.
+    return true;
 }
 
 bool DsdiffFileReader::readChunk_EMID(dsf2flac_uint64 chunkStart)
