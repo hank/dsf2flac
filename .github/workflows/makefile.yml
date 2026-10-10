@@ -1,0 +1,284 @@
+# This workflow installs dsf2flac and AppImage dependencies, packaging the application across various Linux on x86_64 and AArch64 architectures.
+# Adapted from https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+#
+# Author: Abhisit Sangjan
+# Homepage: https://github.com/abhisit
+name: AppImage Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        # Recommended to follow the Arch Linux semantic versioning format, e.g., vX.Y.rNN-R.
+        description: 'Tag to release'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+
+  build-linux-appimage:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+
+          # Build tools
+          sudo apt-get install -y \
+            autoconf \
+            build-essential \
+            g++ \
+            libtool
+
+          # Audio metadata and codec development libraries
+          sudo apt-get install -y \
+            libflac++-dev \
+            libflac-dev \
+            libid3-3.8.3-dev \
+            libid3tag0-dev \
+            libtag1-dev
+
+          # Boost development libraries
+          sudo apt-get install -y \
+            libboost-dev \
+            libboost-filesystem-dev \
+            libboost-timer-dev
+
+          # AppImage creation and runtime support
+          sudo apt-get install -y \
+            fuse3 \
+            libfuse2t64 \
+            squashfs-tools
+
+          # File manipulation tools
+          sudo apt-get install -y \
+            file \
+            wget
+
+      - name: Configure
+        run: ./autogen.sh
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - name: Create AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p AppDir/usr/{bin,lib}
+
+          cp src/dsf2flac AppDir/usr/bin/
+
+          SYSARCH="$(dpkg --print-architecture)"
+          echo "System architecture: ${SYSARCH}"
+
+          MARCH="$(uname -m)"
+          echo "Machine architecture: ${MARCH}"
+
+          echo "Executable:"
+          file src/dsf2flac
+
+          echo "Dependencies:"
+          ldd src/dsf2flac
+
+          echo "Copying shared-library dependencies..."
+
+          ldd src/dsf2flac |
+            awk '/=> \// {print $3} /^[[:space:]]*\/.*\.so/ {print $1}' |
+            sort -u |
+            while read -r lib; do
+              name="$(basename "$lib")"
+
+              case "$name" in
+                ld-linux-*.so.*|libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|libgcc_s.so.*|libstdc++.so.*)
+                  echo "Skipping system library: $lib"
+                  ;;
+                *)
+                  echo "Copying: $lib"
+                  cp -L "$lib" AppDir/usr/lib/
+                  ;;
+              esac
+            done
+
+          echo "Creating AppRun..."
+
+          printf '%s\n' \
+            '#!/bin/sh' \
+            'HERE="$(dirname "$(readlink -f "$0")")"' \
+            'export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' \
+            'exec "$HERE/usr/bin/dsf2flac" "$@"' \
+            > AppDir/AppRun
+
+          chmod +x AppDir/AppRun
+
+          echo "Creating desktop file..."
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Version=1.0' \
+            'Name=dsf2flac' \
+            'Comment=High-fidelity DSD to FLAC conversion—without losing a 1-bit DSD' \
+            'Exec=dsf2flac' \
+            'Type=Application' \
+            'Terminal=true' \
+            'Icon=dsf2flac' \
+            'Categories=Utility;' \
+            > AppDir/dsf2flac.desktop
+
+          printf '%s\n' \
+          '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">' \
+          '<defs>' \
+          '  <linearGradient id="case" x1="0" y1="0" x2="0" y2="1">' \
+          '    <stop offset="0" stop-color="#414947"/>' \
+          '    <stop offset="1" stop-color="#151919"/>' \
+          '  </linearGradient>' \
+          '  <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">' \
+          '    <stop offset="0" stop-color="#1b4b32"/>' \
+          '    <stop offset="1" stop-color="#102b21"/>' \
+          '  </linearGradient>' \
+          '  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">' \
+          '    <feGaussianBlur stdDeviation="3" result="blur"/>' \
+          '    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>' \
+          '  </filter>' \
+          '  <clipPath id="screenClip">' \
+          '    <rect x="31" y="31" width="194" height="194" rx="13"/>' \
+          '  </clipPath>' \
+          '</defs>' \
+          '<rect width="256" height="256" rx="32" fill="url(#case)"/>' \
+          '<rect x="17" y="17" width="222" height="222" rx="24" fill="#0c100f" stroke="#66716b" stroke-width="4"/>' \
+          '<rect x="31" y="31" width="194" height="194" rx="13" fill="url(#screen)" stroke="#9aaa91" stroke-width="3"/>' \
+          '<g clip-path="url(#screenClip)">' \
+          '  <path d="M42 78H214M42 103H214M42 128H214M42 153H214M42 178H214M76 42V214M102 42V214M128 42V214M154 42V214M180 42V214" fill="none" stroke="#4f8e62" stroke-width="1" opacity=".55"/>' \
+          '  <path d="M42 128H214M128 42V214" fill="none" stroke="#83bd7e" stroke-width="1.5" opacity=".8"/>' \
+          '  <path d="M42 128 C48 128 51 119 56 119 C61 119 64 137 69 137 C74 137 77 94 82 94 C87 94 90 164 95 164 C100 164 103 111 108 111 C113 111 116 145 121 145 C126 145 129 78 134 78 C139 78 142 178 147 178 C152 178 155 116 160 116 C165 116 168 140 173 140 C178 140 181 101 186 101 C191 101 194 157 199 157 C204 157 208 128 214 128" fill="none" stroke="#a9ff7e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>' \
+          '  <path d="M42 128 C48 128 51 119 56 119 C61 119 64 137 69 137 C74 137 77 94 82 94 C87 94 90 164 95 164 C100 164 103 111 108 111 C113 111 116 145 121 145 C126 145 129 78 134 78 C139 78 142 178 147 178 C152 178 155 116 160 116 C165 116 168 140 173 140 C178 140 181 101 186 101 C191 101 194 157 199 157 C204 157 208 128 214 128" fill="none" stroke="#e1ffc5" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>' \
+          '  <text x="211" y="67" text-anchor="end" fill="#c7ff9d" font-family="Orbitron, Audiowide, Rajdhani, Eurostile, sans-serif" font-size="16" font-weight="bold" letter-spacing="1.2">Audiophile</text>' \
+          '</g>' \
+          '</svg>' \
+          > AppDir/dsf2flac.svg
+
+          touch AppDir/.DirIcon
+
+          echo "AppDir contents:"
+          find AppDir -maxdepth 3 -type f -print
+
+          ARCH="$(dpkg --print-architecture)"
+
+          case "$ARCH" in
+            arm64)
+              APPIMAGE_ARCH="aarch64"
+              ;;
+            amd64)
+              APPIMAGE_ARCH="x86_64"
+              ;;
+            *)
+              echo "Unsupported architecture: $ARCH"
+              exit 1
+              ;;
+          esac
+
+          echo "AppImage architecture: $APPIMAGE_ARCH"
+
+          echo "Downloading appimagetool..."
+
+          APPIMAGETOOL_URL="$(
+            wget -qO- \
+              https://api.github.com/repos/AppImage/appimagetool/releases/tags/continuous |
+            grep '"browser_download_url":' |
+            grep -E "appimagetool.*${APPIMAGE_ARCH}.*\.AppImage" |
+            head -1 |
+            cut -d '"' -f 4
+          )"
+
+          if [ -z "$APPIMAGETOOL_URL" ]; then
+            echo "ERROR: Could not find appimagetool for $APPIMAGE_ARCH"
+            exit 1
+          fi
+
+          echo "Downloading:"
+          echo "$APPIMAGETOOL_URL"
+
+          wget -q --show-progress \
+            "$APPIMAGETOOL_URL" \
+            -O appimagetool
+
+          chmod +x appimagetool
+
+          echo "Downloaded appimagetool:"
+          ls -lh appimagetool
+          file appimagetool
+
+          OUTPUT="dsf2flac-${APPIMAGE_ARCH}.AppImage"
+
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          export ARCH="$APPIMAGE_ARCH"
+
+          ./appimagetool \
+            AppDir \
+            "$OUTPUT"
+
+          echo "Generated AppImage:"
+          ls -lh "$OUTPUT"
+          file "$OUTPUT"
+          test -s "$OUTPUT"
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsf2flac-${{ matrix.os }}
+          path: "*.AppImage"
+          if-no-files-found: error
+
+  # Optionally expanding build targets to support OSes:
+  # - macOS / Apple Silicon by adding build-macos-portable
+  # - Windows on x86_64 and AArch64 by adding build-windows-portable
+  release:
+    needs:
+      - build-linux-appimage
+
+    # Run release only if triggered by a version tag push or when a release tag is manually entered,
+    # or manually triggering the workflow on a branch for build testing is appreciated.
+    if: startsWith(inputs.tag_name || github.ref_name, 'v')
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dsf2flac-ubuntu-*
+          path: release
+          merge-multiple: true
+
+      - name: List release files
+        run: |
+          echo "Release files:"
+          find release -type f -maxdepth 2 -print -exec ls -lh {} \;
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          files: "release/*"
+          fail_on_unmatched_files: true
